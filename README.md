@@ -14,7 +14,7 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - **New in 1.1.0:** master-client and ownership validation, blocked kicks and renames, a banned-word filter for names and
   room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, simple body IK, nameplates,
   room codes, spectators, a debug overlay, a cosmetic registry with tints, pluggable saving and an optional PlayFab adapter.
-- **1.2.2:** emotes and the edit-mode tests were removed.
+- **1.2.2:** new **Network Object** component that networks any object in one click; emotes and the edit-mode tests were removed.
 - **New in 1.2.1:** a `PhotonVR` static class with the common calls and events in one place (see
   [Building on the API](#building-on-the-api)), plus a few small helpers.
 - **New in 1.2.0:** `PhotonVRPlayFabManager`, a PlayFab manager laid out like the gorilla-tag `Playfablogin` script:
@@ -171,6 +171,32 @@ PhotonVR.CosmeticRejected += (slot, id) => Debug.Log("You don't own " + id);
 
 Also new on `PhotonVRManager`: `IsConnected`, `IsMasterClient` and `GetPlayersInRoom()`. With PlayFab:
 `PhotonVRPlayFabManager.IsLoggedIn`, `BuyItem(itemId, price)` and `RefreshAll()` (items, coins and MOTD).
+
+## Network Object
+Add **Add Component > PhotonVR > Network Object** (`PhotonVRNetworkObject`) to anything that should move for everyone.
+It adds a `PhotonView` and a `PhotonTransformView` (both come with PUN 2), plus a `PhotonRigidbodyView` if the object
+has a Rigidbody. It links them up and sets good defaults. Change things on the Network Object and it copies them onto
+the Photon components:
+
+| Setting | Default | Notes |
+|---|---|---|
+| Sync Position / Rotation / Scale, Use Local | on / on / off, off | Use Local for objects parented to something that moves. |
+| Sync Rigidbody, Velocity, Angular Velocity | on | With a Rigidbody, the rigidbody view does position and rotation (smoother physics). |
+| Teleport If Far, Teleport Distance | on, 3 | Snaps instead of sliding after respawns. |
+| Synchronization | Unreliable On Change | Only sends while the object moves. |
+| Ownership | Takeover | Anyone can take it. Use Fixed for things only the creator moves. |
+| Take Ownership On Touch | off | Your hand touching it makes you the owner, so your movement is synced. |
+
+From code: `TakeOwnership()`, `GiveToMaster()`, `IsMine`, `Apply()` (re-applies the settings).
+
+Getting it into the game:
+- **Already in the scene** (balls, doors, props): just leave it there. Everyone loads the same scene, so it is shared.
+- **Spawned at runtime**: put the prefab in a `Resources` folder and spawn it with
+  `PhotonNetwork.Instantiate("Ball", position, rotation)` (not `Instantiate`). `PhotonNetwork.Destroy` removes it.
+
+Only the owner's movement is sent, so take ownership before moving something. How often it sends is the manager's
+Serialization Rate (15 per second by default). Things players grab should use `PhotonVRGrabbable` instead, which
+already does all of this.
 
 ## Cosmetics
 Every body part on the player prefab has a `…Cosmetics` child. That child is the slot container:

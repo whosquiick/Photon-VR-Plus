@@ -191,4 +191,5 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
   the `RPC_PhotonVREmote` RPC). Scripts that call them need those lines removed. It was added in 1.1.0 and was never
   part of the original PhotonVR, so original PhotonVR scripts are unaffected.
 - Removed the `Tests/` folder (the `PhotonVR.Tests.Editor` assembly). Nothing at runtime used it.
+- Added `Photon.VR.PhotonVRNetworkObject` (named so it doesn't clash with Unity Netcode's `NetworkObject`).
 - Everything else is unchanged.

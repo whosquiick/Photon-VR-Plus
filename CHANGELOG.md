@@ -1,7 +1,13 @@
 # Changelog
 
 ## [1.2.2] - 2026-11-23
-Removed emotes and the edit-mode tests, as requested.
+Network Object, and removed emotes and the edit-mode tests, as requested.
+
+### Added
+- `PhotonVRNetworkObject` (Add Component > PhotonVR > Network Object):
+  - Adds and links a PhotonView, a PhotonTransformView and, with a Rigidbody, a PhotonRigidbodyView.
+  - Sets defaults (Unreliable On Change, Takeover ownership, teleport when far) that you can change on the component.
+  - Optional take-ownership-on-touch, plus `TakeOwnership` / `GiveToMaster`.
 
 ### Removed
 - `PhotonVREmotes` (its `Emote` list, `PlayLocal`, `Play`, the `EmotePlayed` event and its RPC). It wasn't on any
