@@ -37,8 +37,10 @@ namespace Photon.VR
         /// <summary>The effective display name: <see cref="DisplayName"/>, or <see cref="Id"/>.</summary>
         public string Label => string.IsNullOrEmpty(DisplayName) ? Id : DisplayName;
 
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        // Looked up on first use, not in a static initializer: Unity can load MonoBehaviours off the main thread.
+        private static int colorId = -1, baseColorId = -1;
+        private static int ColorId => colorId != -1 ? colorId : (colorId = Shader.PropertyToID("_Color"));
+        private static int BaseColorId => baseColorId != -1 ? baseColorId : (baseColorId = Shader.PropertyToID("_BaseColor"));
         private MaterialPropertyBlock block;
 
         /// <summary>Applies a tint (null removes it). Uses property blocks, so shared materials stay untouched.</summary>

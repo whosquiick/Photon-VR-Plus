@@ -10,12 +10,13 @@ namespace Photon.VR
         private float perSecond;
         private float tokens;
         private float lastRefill;
+        private bool started;
 
+        // Don't touch Unity's clock here: limiters get created in field initializers, where Unity won't allow it.
         public PhotonVRRateLimiter(float perSecond, float capacity)
         {
             Configure(perSecond, capacity);
             tokens = this.capacity;
-            lastRefill = Now;
         }
 
         // Unity's clock when available; plain tests can drive it through Clock.
@@ -31,6 +32,11 @@ namespace Photon.VR
         public bool TryConsume(float amount = 1f)
         {
             float now = Now;
+            if (!started)
+            {
+                started = true;
+                lastRefill = now;
+            }
             tokens = Mathf.Min(capacity, tokens + (now - lastRefill) * perSecond);
             lastRefill = now;
             if (tokens < amount) return false;

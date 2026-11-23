@@ -9,6 +9,11 @@ Network Object, and removed emotes and the edit-mode tests, as requested.
   - Sets defaults (Unreliable On Change, Takeover ownership, teleport when far) that you can change on the component.
   - Optional take-ownership-on-touch, plus `TakeOwnership` / `GiveToMaster`.
 
+### Fixed
+- The "get_realtimeSinceStartup is not allowed to be called from a MonoBehaviour constructor" error from
+  `PhotonVRPoseSync`. The rate limiter no longer reads Unity's clock when it's created; it starts on first use.
+- Cosmetic tint shader IDs are looked up on first use instead of in a static initializer, for the same reason.
+
 ### Removed
 - `PhotonVREmotes` (its `Emote` list, `PlayLocal`, `Play`, the `EmotePlayed` event and its RPC). It wasn't on any
   prefab or sample. If a scene still has it, the component shows as a missing script; just remove it.
