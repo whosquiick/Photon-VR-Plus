@@ -218,14 +218,14 @@ namespace Photon.VR
             if (migratedLegacyIds)
             {
                 migratedLegacyIds = false;
-                UnityEditor.EditorApplication.delayCall += () =>
+                PhotonVREditMode.Delay(() =>
                 {
                     if (this == null) return;
-                    UnityEditor.EditorUtility.SetDirty(this);
+                    PhotonVREditMode.SetDirty(this);
                     if (gameObject.scene.IsValid())
-                        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+                        PhotonVREditMode.MarkSceneDirty(gameObject.scene);
                     PhotonVRLog.Warn("Moved plaintext App IDs on " + name + " into encrypted storage - save the scene/prefab to remove the plaintext from disk.", this);
-                };
+                });
             }
 #endif
         }

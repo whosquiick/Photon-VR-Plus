@@ -57,10 +57,10 @@ namespace Photon.VR
             TeleportDistance = Mathf.Max(0f, TeleportDistance);
 #if UNITY_EDITOR
             // Adding components isn't allowed inside OnValidate, so do it right after.
-            UnityEditor.EditorApplication.delayCall += () =>
+            PhotonVREditMode.Delay(() =>
             {
-                if (this != null && !Application.isPlaying && !UnityEditor.EditorUtility.IsPersistent(this)) Apply();
-            };
+                if (this != null && !Application.isPlaying && !PhotonVREditMode.IsPersistent(this)) Apply();
+            });
 #endif
         }
 
@@ -104,9 +104,9 @@ namespace Photon.VR
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                UnityEditor.EditorUtility.SetDirty(view);
-                UnityEditor.EditorUtility.SetDirty(transformView);
-                if (bodyView != null) UnityEditor.EditorUtility.SetDirty(bodyView);
+                PhotonVREditMode.SetDirty(view);
+                PhotonVREditMode.SetDirty(transformView);
+                if (bodyView != null) PhotonVREditMode.SetDirty(bodyView);
             }
 #endif
         }

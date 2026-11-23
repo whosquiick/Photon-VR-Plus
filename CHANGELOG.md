@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.3] - 2026-11-23
+Runtime scripts no longer touch UnityEditor, so Unity treats them as runtime-only.
+
+### Fixed
+- `PhotonVRSettings`, `PhotonVRManager` and `PhotonVRNetworkObject` were calling Editor APIs
+  (`SetDirty`, `delayCall`, and so on) from Runtime scripts, so Unity registered them as both Editor
+  and Runtime. Those edit-mode saves and component hooks now live in the Editor assembly. Player
+  builds and editor behaviour are unchanged.
+
 ## [1.2.2] - 2026-11-23
 Network Object, and removed emotes and the edit-mode tests, as requested.
 

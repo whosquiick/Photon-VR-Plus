@@ -92,17 +92,13 @@ namespace Photon.VR
         {
             if (!migratedLegacyIds) return;
             migratedLegacyIds = false;
-            UnityEditor.EditorApplication.delayCall += () =>
+            PhotonVREditMode.Delay(() =>
             {
                 if (this == null) return;
-                UnityEditor.EditorUtility.SetDirty(this);
-#if UNITY_2021_2_OR_NEWER
-                UnityEditor.AssetDatabase.SaveAssetIfDirty(this);
-#else
-                UnityEditor.AssetDatabase.SaveAssets();
-#endif
+                PhotonVREditMode.SetDirty(this);
+                PhotonVREditMode.SaveAsset(this);
                 PhotonVRLog.Warn("Moved plaintext App IDs in " + name + " into encrypted storage.", this);
-            };
+            });
         }
 #endif
     }
