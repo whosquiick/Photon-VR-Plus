@@ -1,0 +1,24 @@
+{
+    "name": "PhotonVR.Editor",
+    "rootNamespace": "Photon.VR",
+    "references": [
+        "PhotonVR",
+        "PhotonUnityNetworking",
+        "PhotonRealtime",
+        "PhotonVoice",
+        "PhotonVoice.API",
+        "PhotonVoice.PUN",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

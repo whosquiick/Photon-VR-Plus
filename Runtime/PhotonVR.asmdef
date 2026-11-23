@@ -1,0 +1,21 @@
+{
+    "name": "PhotonVR",
+    "rootNamespace": "Photon.VR",
+    "references": [
+        "PhotonUnityNetworking",
+        "PhotonRealtime",
+        "PhotonVoice",
+        "PhotonVoice.API",
+        "PhotonVoice.PUN",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
