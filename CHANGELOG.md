@@ -12,7 +12,9 @@ PlayFab manager. Drop-in over 1.1.1; nothing new runs unless you add the compone
     name; owned items also feed `RequireOwnedCosmetics` (Load Owned Cosmetics is on by default on the manager).
   - CURRENCY: `CurrencyCode` field (no hardcoded code), `CurrencyName`, `currencyText`, `coins`, optional
     `HideCoinsInMemory`.
-  - BANNED: `bannedscenename`; an AccountBanned error disconnects Photon and loads it. `Banned` event.
+  - BANNED: on an account or IP ban, Photon disconnects first. Then `banneditems` turn on, `banTimeRemainingText` shows
+    "Time remaining: N hours" (rounded up) or "Time remaining: indefinitely", and `banReasonText` shows the PlayFab ban reason.
+    Then the optional `bannedscenename` loads. Also a `Banned(reason, hours)` event and `IsBanned`.
   - TITLE DATA: `MOTDText` from the title data key `MOTD`.
   - PLAYER DATA: `UserName` text, `StartingUsername` for new players, `UpdateName(string)` through the word filter
     to the Photon name and the PlayFab display name.

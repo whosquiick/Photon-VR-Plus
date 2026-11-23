@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 
 using Photon.Pun;
 using PlayFab;
@@ -52,8 +53,14 @@ namespace Photon.VR.PlayFab
         public bool HideCoinsInMemory = false;
 
         [Header("BANNED")]
-        [Tooltip("Scene loaded when PlayFab says the account is banned (Photon is disconnected first). Must be in Build Settings.")]
+        [Tooltip("Optional. Scene loaded when the account is banned (must be in Build Settings). Empty = stay in this scene and show the banned items and texts.")]
         public string bannedscenename = "";
+        [Tooltip("Turned on when the account is banned (after Photon disconnects).")]
+        public List<GameObject> banneditems = new List<GameObject>();
+        [Tooltip("Shows \"Time remaining: 613 hours\" or \"Time remaining: indefinitely\".")]
+        public TextMeshPro banTimeRemainingText;
+        [Tooltip("Shows the ban reason from PlayFab.")]
+        public TextMeshPro banReasonText;
 
         [Header("TITLE DATA")]
         [Tooltip("Shows the title data key \"MOTD\" (PlayFab > Content > Title Data).")]
@@ -71,8 +78,11 @@ namespace Photon.VR.PlayFab
         /// <summary>Raised after the inventory and currency balances are (re)loaded.</summary>
         public static event Action InventoryChanged;
 
-        /// <summary>Raised when PlayFab reports the account as banned.</summary>
-        public static event Action<string> Banned;
+        /// <summary>Raised when PlayFab reports the account as banned (reason, hours left or -1 for indefinitely).</summary>
+        public static event Action<string, int> Banned;
+
+        /// <summary>True once PlayFab reported this account as banned.</summary>
+        public static bool IsBanned { get; private set; }
 
         private static readonly Dictionary<string, int> currency = new Dictionary<string, int>();
         private static readonly List<ItemInstance> items = new List<ItemInstance>();
@@ -381,16 +391,63 @@ namespace Photon.VR.PlayFab
             PhotonVRLog.Warn($"PlayFab: {what}: {e?.ErrorMessage}");
         }
 
-        // A banned account: leave Photon and go to the banned scene. Returns true when it was a ban.
+        // A banned account: leave Photon, show the banned items and texts, then the banned scene if one is set.
+        // Returns true when it was a ban.
         private static bool HandleBan(PlayFabError e)
         {
-            if (e == null || e.Error != PlayFabErrorCode.AccountBanned) return false;
-            PhotonVRLog.Warn("PlayFab: this account is banned.");
-            Banned?.Invoke(e.ErrorMessage);
+            // IP bans come back with their own message and the same ErrorDetails layout.
+            bool ipBan = e?.ErrorMessage != null && e.ErrorMessage.Contains("IP making this request is currently banned");
+            if (e == null || (e.Error != PlayFabErrorCode.AccountBanned && !ipBan)) return false;
+            if (IsBanned) return true;
+            IsBanned = true;
+
+            ReadBan(e, out string reason, out int hours);
+            PhotonVRLog.Warn($"PlayFab: this account is banned ({(hours < 0 ? "indefinitely" : hours + " hours")}).");
             if (PhotonNetwork.IsConnected) PhotonNetwork.Disconnect();
+            if (Instance != null) Instance.ShowBan(reason, hours);
+            Banned?.Invoke(reason, hours);
+
             string scene = Instance != null ? Instance.bannedscenename : "";
             if (!string.IsNullOrEmpty(scene) && SceneManager.GetActiveScene().name != scene) SceneManager.LoadScene(scene);
             return true;
+        }
+
+        private void ShowBan(string reason, int hours)
+        {
+            foreach (GameObject go in banneditems)
+                if (go != null) go.SetActive(true);
+            if (banTimeRemainingText != null)
+                banTimeRemainingText.text = hours < 0 ? "Time remaining: indefinitely" : $"Time remaining: {hours} hours";
+            if (banReasonText != null) banReasonText.text = reason;
+        }
+
+        // PlayFab puts bans in ErrorDetails as reason -> [expiry], where expiry is a UTC time or "Indefinite".
+        // With several bans the longest one wins. No details, or a ban 10+ years out, counts as indefinitely.
+        private static void ReadBan(PlayFabError e, out string reason, out int hours)
+        {
+            reason = "";
+            hours = -1;
+            if (e.ErrorDetails == null || e.ErrorDetails.Count == 0) return;
+
+            hours = 0;
+            foreach (var ban in e.ErrorDetails)
+            {
+                int left = HoursUntil(ban.Value != null && ban.Value.Count > 0 ? ban.Value[0] : null);
+                bool longer = hours >= 0 && (left < 0 || left > hours);
+                if (!longer) continue;
+                hours = left;
+                reason = ban.Key ?? "";
+            }
+        }
+
+        private static int HoursUntil(string expiry)
+        {
+            if (string.IsNullOrEmpty(expiry) ||
+                !DateTime.TryParse(expiry, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime until))
+                return -1;
+            TimeSpan left = until - DateTime.UtcNow;
+            if (left.TotalDays > 3650) return -1;
+            return Math.Max(1, (int)Math.Ceiling(left.TotalHours));
         }
     }
 }

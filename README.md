@@ -431,7 +431,7 @@ encrypted. `PhotonVRPlayFabAuth` still works as before; use one of them, not bot
 | PLAYFAB | Title Id, Harden Title Id, Retry Login (2, 4, 8... seconds apart, up to Max Login Retries; never retries a ban) |
 | COSMETICS | My PlayFab ID (filled in at login), Catalog Name, `specialitems` (turned on when the player owns an item whose ItemId is the object's name), `disableitems` (turned off when owned) |
 | CURRENCY | Currency Code (e.g. `HS`, from PlayFab > Economy > Currencies), Currency Name, `currencyText` ("You have 250 Coins"), `coins`, Hide Coins In Memory |
-| BANNED | `bannedscenename`: when PlayFab says the account is banned, Photon disconnects and this scene loads (add it to Build Settings) |
+| BANNED | `bannedscenename` (optional), `banneditems`, `banTimeRemainingText`, `banReasonText`: see below |
 | TITLE DATA | `MOTDText`: shows the title data key `MOTD` (PlayFab > Content > Title Data) |
 | PLAYER DATA | `UserName` text, Starting Username (new players get it plus 4 random digits, because PlayFab display names are unique) |
 
@@ -445,6 +445,22 @@ The inherited toggles work the same as on `PhotonVRPlayFabAuth`:
 
 Everything happens on login and after purchases. There is no Update loop. Items and currency come from one
 `GetUserInventory` call.
+
+**Bans.** When PlayFab refuses a request because the account (or IP) is banned, the manager:
+1. disconnects Photon,
+2. turns on everything in `banneditems`,
+3. writes `Time remaining: 613 hours` (rounded up) or `Time remaining: indefinitely` into `banTimeRemainingText`, and
+   the reason from PlayFab into `banReasonText`,
+4. loads `bannedscenename` if you set one. Leave it empty to stay in the scene and just show the objects and texts.
+
+Pick one setup: either keep the ban objects in your game scene and leave the scene name empty, or put the objects and
+texts in the banned scene with their own manager, so they show up there when it logs in.
+
+The time and reason come from the ban PlayFab sends back (ErrorDetails: reason -> expiry, or "Indefinite"). With
+several bans the longest wins. A ban with no expiry, or one 10+ years out, shows as indefinitely. If PlayFab sends
+no details, the time shows indefinitely and the reason is empty. Ban from PlayFab > Players > Bans (the reason you type
+there is what players see). The texts only appear while the game is talking to PlayFab, and a modded client can hide
+them, but PlayFab still refuses the banned account.
 
 **Linking items to cosmetics.** In PlayFab > Economy > Catalogs (classic / v1), add one item per cosmetic with the
 ItemId set to the cosmetic's ID, which is the child object's name under the slot. Add your Cosmetic Item Prefix if
