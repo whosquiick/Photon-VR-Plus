@@ -4,19 +4,32 @@
 PlayFab manager. Drop-in over 1.1.1; nothing new runs unless you add the component.
 
 ### Added
-- `PhotonVRPlayFabManager` (PlayFab integration, needs `PHOTONVR_PLAYFAB`): one component for PlayFab.
-  - Title ID field stored encrypted with the same protection as the Photon App IDs, plus optional `HardenTitleId`
-    (session-keyed vault, like `HardenMemory`).
-  - Everything from `PhotonVRPlayFabAuth`: login, saves, `SyncDisplayName`, `LoadOwnedCosmetics`.
-  - Economy helpers: `RefreshInventory`, `GetCurrency`, `GetBalance`, `FormatBalance`, `OwnsItem`, `GetCatalogItem`,
-    `PurchaseItem`, `PurchaseCosmetic`, `ConsumeItem`, `SpendCurrency`, `GrantCurrency` (testing only; grant from the
-    server in real games), and the `InventoryChanged` event.
+- `PhotonVRPlayFabManager` (PlayFab integration, needs `PHOTONVR_PLAYFAB`), laid out like the gorilla-tag
+  `Playfablogin` script:
+  - PLAYFAB: Title ID stored encrypted with the same protection as the Photon App IDs, optional `HardenTitleId`
+    vault, optional login retry with backoff.
+  - COSMETICS: `MyPlayFabID`, `CatalogName`, `specialitems` / `disableitems` turned on/off by owned ItemId == object
+    name; owned items also feed `RequireOwnedCosmetics` (Load Owned Cosmetics is on by default on the manager).
+  - CURRENCY: `CurrencyCode` field (no hardcoded code), `CurrencyName`, `currencyText`, `coins`, optional
+    `HideCoinsInMemory`.
+  - BANNED: `bannedscenename`; an AccountBanned error disconnects Photon and loads it. `Banned` event.
+  - TITLE DATA: `MOTDText` from the title data key `MOTD`.
+  - PLAYER DATA: `UserName` text, `StartingUsername` for new players, `UpdateName(string)` through the word filter
+    to the Photon name and the PlayFab display name.
+  - Economy: one `GetUserInventory` call for items and currency (`RefreshInventory`), `OwnsItem`, `GetCurrency`,
+    `GetBalance`, `FormatBalance`, `GetCatalogItem`, `PurchaseItem`, `PurchaseCosmetic`, `ConsumeItem`,
+    `InventoryChanged`. No client currency grants; grant from the server.
+  - Everything is event-driven, with no Update loop. Null text fields are skipped.
+- `Playfablogin`: a thin subclass with the same fields plus `instance`, `name`, `UpdateName()`, `Login()` and
+  `GetVirtualCurrencies()`, for scenes and scripts built on that script.
 - `PhotonVRPlayFabAuth.UsePhotonCustomAuth`: on by default, so existing setups are unchanged; off on the new manager.
 - `PhotonVRAppIdKind.PlayFabTitle`.
 
 ### Changed
-- `PhotonVRPlayFabAuth` lifecycle methods are now `protected virtual`, so the manager can build on them.
+- `PhotonVRPlayFabAuth`: lifecycle methods and `OnLoggedIn` are now virtual, and it has small hooks for subclasses:
+  `ApplyTitleId`, `LoginInfo`, `OnLoginError`, `RetryLastLogin`.
 - `LoginSucceeded` fires right after the PlayFab login instead of after the Photon connect call.
+- The PlayFab assembly now references `Unity.TextMeshPro`.
 
 ## [1.1.1] - 2026-11-23
 Names, cosmetic ownership and PlayFab options. Drop-in over 1.1.0; new options are off by default.

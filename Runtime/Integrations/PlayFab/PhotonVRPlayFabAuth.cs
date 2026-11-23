@@ -71,12 +71,26 @@ namespace Photon.VR.PlayFab
                 Fail("PlayFab Title ID is not set (Window > PlayFab > Editor Extensions, or PlayFabSharedSettings).");
                 return;
             }
-            PlayFabClientAPI.LoginWithCustomID(new LoginWithCustomIDRequest { CustomId = id, CreateAccount = true },
-                OnLoggedIn, e => Fail(e.GenerateErrorReport()));
+            lastLoginId = id;
+            PlayFabClientAPI.LoginWithCustomID(new LoginWithCustomIDRequest { CustomId = id, CreateAccount = true, InfoRequestParameters = LoginInfo },
+                OnLoggedIn, OnLoginError);
         }
 
+        private string lastLoginId;
+
+        /// <summary>Logs in again with the last ID used (for retries).</summary>
+        protected void RetryLastLogin()
+        {
+            if (!string.IsNullOrEmpty(lastLoginId)) LoginWithCustomId(lastLoginId);
+        }
+
+        /// <summary>Extra data to ask for with the login (null = none).</summary>
+        protected virtual GetPlayerCombinedInfoRequestParams LoginInfo => null;
+
+        protected virtual void OnLoginError(PlayFabError error) => Fail(error.GenerateErrorReport());
+
         /// <summary>Call this yourself if you log in through another PlayFab flow (Oculus, Steam, email...).</summary>
-        public void OnLoggedIn(LoginResult result)
+        public virtual void OnLoggedIn(LoginResult result)
         {
             PlayFabId = result.PlayFabId;
             if (UsePlayFabSaves && saveProvider == null)
@@ -150,7 +164,7 @@ namespace Photon.VR.PlayFab
                 });
         }
 
-        private static void Fail(string error)
+        protected static void Fail(string error)
         {
             PhotonVRLog.Error("PlayFab login failed: " + error);
             LoginFailed?.Invoke(error);

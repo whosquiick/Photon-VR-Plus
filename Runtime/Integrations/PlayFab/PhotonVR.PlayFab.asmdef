@@ -5,7 +5,8 @@
         "PhotonVR",
         "PhotonUnityNetworking",
         "PhotonRealtime",
-        "PlayFab"
+        "PlayFab",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

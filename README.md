@@ -14,8 +14,8 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - **New in 1.1.0:** master-client and ownership validation, blocked kicks and renames, a banned-word filter for names and
   room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, emotes, simple body IK, nameplates,
   room codes, spectators, a debug overlay, a cosmetic registry with tints, pluggable saving and an optional PlayFab adapter.
-- **New in 1.2.0:** `PhotonVRPlayFabManager`, one component for PlayFab: encrypted Title ID, login, currency balances,
-  catalog items, purchases and owned cosmetics.
+- **New in 1.2.0:** `PhotonVRPlayFabManager`, a PlayFab manager laid out like the gorilla-tag `Playfablogin` script:
+  encrypted Title ID, special items, currency, bans, MOTD, display name and purchases, plus a drop-in `Playfablogin` class.
 - **New in 1.1.1:** names and cosmetics never depend on the master client, your own scripts can set
   `PhotonNetwork.NickName` directly, optional owned-cosmetics check, and optional name sync to the PlayFab display name.
 - **Backwards compatible**: same class names, namespace (`Photon.VR`), public fields, methods, cosmetic names,
@@ -413,8 +413,9 @@ go through the word filter.
 
 ## PlayFab (optional)
 
-Everything PlayFab lives on one component, **`PhotonVRPlayFabManager`**. `PhotonVRPlayFabAuth` still works as before;
-the manager is the same thing plus the Title ID field and economy helpers. Use one of them, not both.
+Everything PlayFab lives on one component, **`PhotonVRPlayFabManager`**. Its inspector is laid out like the usual
+gorilla-tag `Playfablogin` script (COSMETICS, CURRENCY, BANNED, TITLE DATA, PLAYER DATA), with the Title ID stored
+encrypted. `PhotonVRPlayFabAuth` still works as before; use one of them, not both.
 
 **Setup**
 1. Import the PlayFab Unity SDK, then **Tools > PhotonVR > PlayFab > Enable Integration** (adds `PHOTONVR_PLAYFAB`;
@@ -422,52 +423,71 @@ the manager is the same thing plus the Title ID field and economy helpers. Use o
    assembly definition, move the scripts in `Runtime/Integrations/PlayFab` into your Assets folder instead.
 2. Add `PhotonVRPlayFabManager` to a scene object. Click **Set** on **Title Id** and paste your Title ID; it is stored
    encrypted, the same way as the Photon App IDs. Leave the Title ID in `PlayFabSharedSettings` empty so it isn't also
-   stored in plain text. Tick **Harden Title Id** to also keep it in a session-keyed vault in memory.
-3. Login: keep **Login On Start** ticked. It uses the device ID, or **Custom Id** if you fill it in. If you log in with
-   your own scripts, untick it and call `OnLoggedIn(result)` yourself so the toggles below still work.
-4. Toggles (all off by default, except saving which was already on in `PhotonVRPlayFabAuth`):
+   stored in plain text. **Harden Title Id** also keeps it in a session-keyed vault in memory.
+3. Fill in the sections you use. Empty text fields are skipped.
 
-| Toggle | What it does |
+| Section | Fields |
 |---|---|
-| `UsePlayFabSaves` | Saves name / colour / cosmetics in PlayFab user data (`PhotonVRSave`). |
-| `UsePhotonCustomAuth` | After login, gets a Photon token and connects with Photon custom auth (`UserId = PlayFabId`). Untick `ConnectOnAwake` on the PhotonVR manager, and set Photon dashboard > Authentication > Custom Server `https://<titleId>.playfabapi.com/photon/authenticate` and your Photon App ID under PlayFab Add-ons > Photon. Off = `PhotonVRManager` connects on its own. (On by default on the older `PhotonVRPlayFabAuth`.) |
-| `SyncDisplayName` | Every accepted name change is also sent to `UpdateUserTitleDisplayName` (3-25 characters; PlayFab may refuse taken or filtered names, which is logged). |
-| `LoadOwnedCosmetics` | Your PlayFab inventory becomes the owned cosmetics for `RequireOwnedCosmetics` on the PhotonVR manager. |
-| `CosmeticItemPrefix` | Catalog ItemId = prefix + cosmetic ID. With `cosmetic_`, item `cosmetic_VRTopHat` owns cosmetic `VRTopHat`. Empty = same name. |
-| `CatalogVersion` | Catalog for items and purchases. Empty = primary catalog. |
+| PLAYFAB | Title Id, Harden Title Id, Retry Login (2, 4, 8... seconds apart, up to Max Login Retries; never retries a ban) |
+| COSMETICS | My PlayFab ID (filled in at login), Catalog Name, `specialitems` (turned on when the player owns an item whose ItemId is the object's name), `disableitems` (turned off when owned) |
+| CURRENCY | Currency Code (e.g. `HS`, from PlayFab > Economy > Currencies), Currency Name, `currencyText` ("You have 250 Coins"), `coins`, Hide Coins In Memory |
+| BANNED | `bannedscenename`: when PlayFab says the account is banned, Photon disconnects and this scene loads (add it to Build Settings) |
+| TITLE DATA | `MOTDText`: shows the title data key `MOTD` (PlayFab > Content > Title Data) |
+| PLAYER DATA | `UserName` text, Starting Username (new players get it plus 4 random digits, because PlayFab display names are unique) |
 
-**Linking cosmetics to the catalog.** In PlayFab > Economy > Catalogs, add one item per cosmetic, with the ItemId set
-to the cosmetic's ID (the child object's name under the slot), with your prefix if you use one. Give it a price in your
-virtual currency. Then tick `RequireOwnedCosmetics` on the PhotonVR manager and `LoadOwnedCosmetics` on the PlayFab
-manager. Free items go in the manager's `OwnedCosmetics` list.
+The inherited toggles work the same as on `PhotonVRPlayFabAuth`:
+- **Login On Start**: logs in with the device ID, or with **Custom Id** if you fill it in. If you log in from your
+  own code, call `OnLoggedIn(result)`.
+- **Use Photon Custom Auth**: off on the manager. Turn it on, untick `ConnectOnAwake` on the PhotonVR manager and set
+  Photon dashboard > Authentication > Custom Server `https://<titleId>.playfabapi.com/photon/authenticate`, so only
+  logged-in PlayFab players can join.
+- **Use PlayFab Saves**, **Sync Display Name**, **Load Owned Cosmetics** (on by default on the manager), **Cosmetic Item Prefix**.
 
-**Economy helpers** (static, small on purpose; all use the PlayFab client API, Economy v1 catalogs):
+Everything happens on login and after purchases. There is no Update loop. Items and currency come from one
+`GetUserInventory` call.
+
+**Linking items to cosmetics.** In PlayFab > Economy > Catalogs (classic / v1), add one item per cosmetic with the
+ItemId set to the cosmetic's ID, which is the child object's name under the slot. Add your Cosmetic Item Prefix if
+you use one. Give it a price in your currency. Then tick `RequireOwnedCosmetics` on the PhotonVR manager: with
+Load Owned Cosmetics on, owned items become owned cosmetics, and players can't wear the rest. The same item names
+drive `specialitems` / `disableitems`. Free cosmetics go in the PhotonVR manager's `OwnedCosmetics` list.
+
+**From code**
 ```cs
-PhotonVRPlayFabManager.RefreshInventory(() => Debug.Log("loaded"));    // inventory + balances
-int coins = PhotonVRPlayFabManager.GetBalance("GC");
-label.text = PhotonVRPlayFabManager.FormatBalance("GC");               // "1,250 GC"
-var all = PhotonVRPlayFabManager.GetCurrency();                        // code -> amount
-bool hasCrown = PhotonVRPlayFabManager.OwnsItem("cosmetic_VRCrown");
-PhotonVRPlayFabManager.GetCatalogItem("cosmetic_VRCrown", item => Debug.Log(item?.DisplayName));
-PhotonVRPlayFabManager.PurchaseCosmetic("VRCrown", "GC", 500, ok => { });   // PurchaseItem + owned cosmetic
-PhotonVRPlayFabManager.PurchaseItem("speed_boost", "GC", 100, ok => { });
-PhotonVRPlayFabManager.ConsumeItem("speed_boost", 1, ok => { });
-PhotonVRPlayFabManager.InventoryChanged += RefreshShopUi;
+var pf = PhotonVRPlayFabManager.Instance;
+pf.UpdateName("Monke");                                               // word filter -> Photon name -> PlayFab display name
+PhotonVRPlayFabManager.PurchaseItem("GoldCrown", 500, ok => { });     // uses Currency Code; PlayFab checks price and balance
+PhotonVRPlayFabManager.PurchaseCosmetic("VRCrown", "HS", 500, ok => { });
+PhotonVRPlayFabManager.ConsumeItem("SpeedBoost", 1, ok => { });
+bool owns = PhotonVRPlayFabManager.OwnsItem("GoldCrown");
+int coins = pf.Coins;                                                 // or GetBalance("HS"), FormatBalance("HS")
+PhotonVRPlayFabManager.RefreshInventory();                            // after a server-side grant
+PhotonVRPlayFabManager.InventoryChanged += RefreshShop;
+PhotonVRPlayFabManager.Banned += reason => { };
 ```
-`SpendCurrency` / `GrantCurrency` call `SubtractUserVirtualCurrency` / `AddUserVirtualCurrency`. PlayFab blocks both
-from clients unless you enable them in the title's API policy. **Keep client grants off in a real game**: any player
-could call them. Give currency from the server (CloudScript / Azure Functions / Server API, e.g. for daily rewards or
-round wins). Purchases are safe from the client because PlayFab checks the price and balance itself.
+
+**Coming from a `Playfablogin` script.** There is a `Playfablogin` component, a `PhotonVRPlayFabManager` with
+the same fields plus `instance`, `name`, `UpdateName()`, `Login()` and `GetVirtualCurrencies()`. Delete your old
+`Playfablogin.cs`. Then on the object, drag this `Playfablogin` script into the "missing script" slot, and Unity keeps
+the field values whose names match. Set the Title ID with the **Set** button, then set Currency Code to the code your
+old script had hardcoded.
+
+**Currency grants stay on the server.** The manager has no "add coins" call on purpose: anything the client can call,
+a cheater can call too. Give currency from CloudScript / Azure Functions / the Server API (round wins, daily rewards,
+codes), then call `RefreshInventory()`. Keep client Add/Subtract currency disabled in your title's API policy (that is
+PlayFab's default). Purchases are fine from the client because PlayFab checks the price and balance itself.
 
 **What is and isn't secret**
 - The Title ID is **not a secret**. It is in every request your game sends to PlayFab, and the SDK keeps it in plain text
   in memory once you log in. Encrypting it in your build stops casual extraction from the files; it doesn't stop a
-  determined person. Lock your title down in PlayFab instead: turn off client grants, and use
-  API policies and server-side validation.
+  determined person. Protect the title with API policies, server-side grants and validation.
 - **Never put your PlayFab secret key in the game.** It belongs only on a server or in CloudScript. Nothing in this
   package asks for it.
-- Owned cosmetics are checked on the player's own client (see [Security](#security)). Purchases and inventory are real
-  PlayFab data, but whether another player shows a cosmetic is still up to their client.
+- Hide Coins In Memory only makes the displayed balance harder to find with a memory scanner. Editing it changes
+  nothing real, because the balance is on PlayFab.
+- Bans come from PlayFab, but the banned-scene redirect runs on the player's client. The real protection is that
+  PlayFab refuses a banned account's requests (and Photon too, with Use Photon Custom Auth on).
+- Owned cosmetics are checked on each player's own client (see [Security](#security)).
 
 ## Samples and tests
 - Package Manager > Photon VR Plus > Samples: **Lobby** and **Playground**. In the .unitypackage they are in

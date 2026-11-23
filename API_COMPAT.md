@@ -169,7 +169,13 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
 - Nothing renamed or removed; no new Photon keys, events or RPCs.
 - Additions:
   - `PhotonVRAppIdKind.PlayFabTitle` (added at the end, existing values unchanged);
-  - `PhotonVRPlayFabManager` (new script, PlayFab assembly only);
+  - `PhotonVRPlayFabManager` and `Playfablogin` (new scripts, PlayFab assembly only; `Playfablogin` is in the global
+    namespace, like the script it replaces);
   - `PhotonVRPlayFabAuth.UsePhotonCustomAuth` (defaults to true = old behaviour).
-- `PhotonVRPlayFabAuth`'s `OnEnable` / `OnDisable` / `Start` / `OnDestroy` went from private to `protected virtual`.
+- `PhotonVRPlayFabAuth` changes:
+  - `OnEnable`, `OnDisable`, `Start` and `OnDestroy` went from private to `protected virtual`.
+  - `OnLoggedIn` is now `virtual`.
+  - New protected hooks: `ApplyTitleId`, `LoginInfo`, `OnLoginError`, `RetryLastLogin`, `Fail`.
 - `LoginSucceeded` is raised right after the PlayFab login, before the Photon connect call.
+- If your project still has its own `Playfablogin` class, it takes priority over the package one in your scripts
+  (CS0436 warning). Delete yours to switch.
