@@ -8,6 +8,8 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - A networked **player prefab** with cosmetic slots for **Head, Face, Body, LeftHand and RightHand**.
 - When you join a room, the **Main Camera drives the head** and your **XR controllers drive the hands**. Everyone sees
   it smoothly through snapshot interpolation.
+- Ready-made prefabs: the networked **Player**, a drop-in **PhotonVRManager** (manager + voice + spawner) and a sample cosmetic.
+- App IDs stored **encrypted**, with optional in-memory hardening (see [Protecting your App IDs](#protecting-your-app-ids)).
 - Auto-reconnect, room helpers, events, null-safe code and an editor menu that sets up everything for you.
 - **Backwards compatible**: same class names, namespace (`Photon.VR`), public fields, methods, cosmetic names,
   Photon property keys and even script GUIDs. Existing scripts that use PhotonVR compile and work unchanged.
@@ -25,10 +27,10 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 Photon Voice 2 already contains PUN 2. If you import only Photon Voice 2, you get both.
 
 ## Install
-**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus.unitypackage`.
+**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.0.1.unitypackage`.
 Everything goes into `Assets/PhotonVR`.
 
-**Option B – UPM:** unzip `PhotonVRPlus-UPM.zip`, then Window > Package Manager > **+** > *Add package from disk…* >
+**Option B – UPM:** unzip `PhotonVRPlus-1.0.1-UPM.zip`, then Window > Package Manager > **+** > *Add package from disk…* >
 select `com.photonvrplus.core/package.json`. (You can also push the folder to a Git repo and use *Add package from git URL*.)
 
 Use one option, not both.
@@ -46,15 +48,40 @@ Use one option, not both.
 1. Import PUN 2 + Photon Voice 2 and TMP Essentials. Enter anything in the PUN wizard, or skip it.
 2. Import Photon VR Plus (see above).
 3. Open your scene with your XR rig (camera tagged **MainCamera**).
-4. **Tools > PhotonVR > Setup Scene**. This creates:
-   - `PhotonVRManager`: Head = Main Camera, Left/Right Hand = your controllers (auto-detected by name; check them!)
-   - `PhotonVRPlayerSpawner`: spawns `Resources/PhotonVR/Player` when you join a room
-   - `PhotonVRVoice`: PUN voice client + Recorder (your microphone)
-5. Select `PhotonVRManager` and paste your **App ID** (PUN) and **Voice App ID** from
-   <https://dashboard.photonengine.com>, and set the **Region** (`eu`, `us`, `usw`, `asia`, `jp`, `au`, … or `best`).
-   *Or* **Tools > PhotonVR > Create Settings Asset** and put them there, which overrides the manager fields.
+4. **Tools > PhotonVR > Setup Scene**, or drag `Prefabs/PhotonVRManager.prefab` into the scene. You get:
+   - `PhotonVRManager`: Head = Main Camera, Left/Right Hand = your controllers (auto-detected; check them!)
+   - `Voice`: PUN voice client + Recorder (your microphone) + `PhotonVRVoice`
+   - `PlayerSpawner`: spawns `Resources/PhotonVR/Player` when you join a room
+5. **Tools > PhotonVR > Set App IDs...** and paste your **App ID** (PUN) and **Voice App ID** from
+   <https://dashboard.photonengine.com>. They are saved encrypted to `Resources/PhotonVRSettings` (or to the scene's
+   manager). Set the **Region** (`eu`, `us`, `usw`, `asia`, `jp`, `au`, … or `best`) on the manager or settings asset.
+   If the PUN wizard put your IDs into PhotonServerSettings, use **Tools > PhotonVR > Move App IDs Out Of
+   PhotonServerSettings** so they are not shipped as plain text.
 6. Press Play. The manager connects, joins the `Default` queue and spawns your player. Run a second build to see each other.
 7. **Tools > PhotonVR > Validate Setup** lists anything that is still missing.
+
+## Package layout
+```
+Runtime/
+  Core/        PhotonVRManager (fields, lifecycle), PhotonVRSettings, ConnectionState, PhotonVRKeys, PhotonVRProtectedString
+  Networking/  PhotonVRManager.Connection / .Rooms / .Security, PhotonVRPoseSync, PlayerSpawner
+  Player/      PhotonVRPlayer, PhotonVRPlayerBody, PhotonVRPlayerName
+  Cosmetics/   PhotonVRManager.PlayerValues, PhotonVRCosmetic, PhotonVRCosmeticSlots, PhotonVRCosmeticUtility
+  Voice/       PhotonVRVoice (voice client + mic), PhotonVRPlayerVoice (per player speaker)
+  Saving/      PhotonVRValueSaver
+  Utilities/   PhotonVRLog, PhotonVRRigFinder, PhotonVRIdProtector, PhotonVRIdVault
+  Testing/     PhotonVRColourChanger, PhotonVRCosmeticsChanger
+  Resources/PhotonVR/
+    Player.prefab                      networked player (5 cosmetic slots, pose sync, voice)
+    Prefabs/PhotonVRManager.prefab     drop-in manager + voice + spawner
+    Prefabs/PhotonVRVoice.prefab       voice client on its own
+    Prefabs/PhotonVRPlayerSpawner.prefab
+    Prefabs/Cosmetics/VRSunglasses.prefab   sample cosmetic
+    Prefabs/Testing/*                  colour / cosmetic test triggers
+Editor/
+  Inspectors/  manager inspector, encrypted-ID drawer, testing inspectors
+  Tools/       Setup Scene, Set App IDs window, prefab builders, build check
+```
 
 ## Using it from code (same API as PhotonVR)
 ```cs
@@ -120,12 +147,73 @@ the spawner at it.
 
 ## Sync settings
 - `PhotonVRManager.SendRate` / `SerializationRate` (defaults 30 / 15). A higher serialization rate is smoother but uses more Photon messages.
-- `PhotonVRPlayer.SmoothSync`, `InterpolationBackTime` (0 = auto), `MaxExtrapolation`, `TeleportDistance`.
+- `PhotonVRPoseSync` on the player prefab: `InterpolationBackTime` (0 = auto), `MaxExtrapolation`, `TeleportDistance`.
+  The old `PhotonVRPlayer` properties with the same names still work and forward to it. `PhotonVRPlayer.SmoothSync`
+  turns the component on or off.
 
 ## Reconnects
 `AutoReconnect` (on by default) retries after timeouts or network loss, with exponential backoff (`ReconnectDelay`,
 `MaxReconnectAttempts`). With `RejoinAfterReconnect`, it rejoins the same queue or private room. Calling `Disconnect()`
 yourself never triggers a reconnect.
+
+## Protecting your App IDs
+**Short version: anything a game client must use at runtime can be extracted from that client. The real protection
+is on Photon's side (authentication). Everything below only raises the bar.**
+
+### What the package does by default
+- The App ID and Voice App ID are stored **encrypted** (AES-256 over an XOR mask with a checksum, Base64) in the
+  manager and `PhotonVRSettings`. There is no plaintext serialized field, so they do not show up in a scene file,
+  an asset bundle or a simple `strings` dump of your build.
+- Enter them through the masked inspector field or **Tools > PhotonVR > Set App IDs...**.
+- At connect time they are decrypted into a private `AppSettings` copy that goes straight to Photon. They are not
+  written into `PhotonServerSettings` and not logged.
+- Old scenes and assets with plaintext IDs are migrated to encrypted storage the first time they load in the editor.
+- A build warning tells you when `PhotonServerSettings` still contains plaintext IDs. Fix it with
+  **Tools > PhotonVR > Move App IDs Out Of PhotonServerSettings**.
+
+The key is derived inside the package code. Anyone with a decompiler can reproduce it. This is **obfuscation**:
+it stops casual copying, not a determined attacker.
+
+### Optional memory hardening (`HardenMemory`)
+Tick **Harden Memory** on the `PhotonVRManager` or on the `PhotonVRSettings` asset (either one enables it). It is off by
+default. When it is on:
+- On startup the IDs are moved into an in-memory vault, re-encrypted with a **random key generated for this session**
+  and protected with an HMAC. In player builds the at-rest copies are then dropped from memory.
+- An ID is decrypted into a byte buffer only when Photon needs it, and the buffer is zeroed right after. No field
+  caches the plaintext.
+- Photon's own copies (`LoadBalancingClient.AppId` for PUN and for the voice client, and the voice client's
+  `Settings.AppIdVoice`) are **blanked whenever the client is idle on a server** (connected to master, in a lobby or in
+  a room). They are put back just before Photon switches servers (joining or leaving a room) or reconnects, which is
+  the only time Photon reads them. Auto-reconnect and `Connect()` decrypt them again.
+- Cheap anti-tamper: the vault refuses to return an ID whose integrity check fails, and the manager warns when an ID
+  does not look like a Photon App ID (a GUID).
+
+Notes:
+- The PhotonVRManager room methods and direct PUN calls (`JoinRoom`, `LeaveRoom`, `Reconnect`, ...) both keep working,
+  because the IDs are restored from Photon's own state changes. While disconnected the PUN App ID stays restored so
+  Photon can reconnect; it is blanked again as soon as the client reaches the master server.
+- Honest limit: this makes memory dumping **much harder, not impossible**. The plaintext has to exist briefly every time
+  Photon connects to a server, and Photon keeps it as a regular managed .NET `string` while it connects. Strings
+  cannot be wiped and stay in memory until the garbage collector reuses that memory. A memory dumper or debugger
+  attached at the right moment will still find it.
+
+### The real fix: lock the App ID down in the Photon dashboard
+A leaked App ID only matters if strangers can use it. Make the server refuse clients that are not yours:
+1. Open <https://dashboard.photonengine.com>, pick your PUN app and click **Manage**. Do the same for the Voice app.
+2. Under **Authentication**, add a provider. Use **Custom Server** with your own auth URL, or a platform provider
+   such as **Meta Quest / Oculus**, **Steam** or **PlayFab**. A platform provider verifies the player owns your app,
+   which is the closest Photon gets to a bundle-ID restriction.
+3. Untick **"Allow anonymous clients to connect, independently of configured providers"**. The option only appears
+   once a provider exists. From now on, clients without valid credentials are rejected, even if they have your App ID.
+4. In the game, log in with the provider and pass the token. For custom auth that is
+   `PhotonVRManager.ConnectAuthenticated(username, token)`, or set `PhotonNetwork.AuthValues` before connecting.
+5. Your auth service can also reject outdated or unknown builds. For example, send `Application.version` as an auth
+   parameter and refuse versions you no longer support. `GameVersion` alone only separates matchmaking; it is not a
+   security check.
+6. Optionally restrict the app to the regions you use, and watch the dashboard's CCU and traffic graphs.
+
+Keep the custom auth endpoint secret on the server side (put shared keys in the dashboard's key/value pairs, not in
+the client).
 
 ## License
 MIT. Copyright (c) 2022 fchb1239 (original PhotonVR), plus Photon VR Plus contributors. See [LICENSE.md](LICENSE.md).

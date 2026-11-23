@@ -1,4 +1,3 @@
-// Photon VR Plus - based on PhotonVR by fchb1239 (MIT). See LICENSE.md.
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,6 +8,7 @@ namespace Photon.VR.Saving
     /// <c>PlayerPrefs[location]</c> = comma-joined keys, <c>PlayerPrefs[location + key]</c> = value.
     /// (Still a MonoBehaviour so existing references to the component keep working.)
     /// </summary>
+    [AddComponentMenu("")] // static helper; hidden from the Add Component menu
     public class PhotonVRValueSaver : MonoBehaviour
     {
         public static void SaveDictionary(string location, Dictionary<string, string> value)
@@ -25,7 +25,7 @@ namespace Photon.VR.Saving
             {
                 if (string.IsNullOrEmpty(kv.Key) || kv.Key.Contains(","))
                 {
-                    Debug.LogWarning($"[PhotonVR] Skipping invalid dictionary key '{kv.Key}' when saving '{location}'");
+                    PhotonVRLog.Warn($"Skipping invalid dictionary key '{kv.Key}' when saving '{location}'");
                     continue;
                 }
                 keys.Add(kv.Key);

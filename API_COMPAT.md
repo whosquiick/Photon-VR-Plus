@@ -19,23 +19,28 @@ signature. New members were only **added**. A ✅ means that exact member is kep
 ## Script GUIDs (kept, so existing scenes and prefabs keep their component references)
 | Script | GUID |
 |---|---|
-| PhotonVRManager.cs | `c13d37f911dfcb6448ff72058ae197eb` |
-| PhotonVRManagerGUI.cs | `f2276a7722c16a4468345ae07bda6dc3` |
+| PhotonVRManager.cs (now Runtime/Core) | `c13d37f911dfcb6448ff72058ae197eb` |
+| PhotonVRManagerGUI.cs (now Editor/Inspectors) | `f2276a7722c16a4468345ae07bda6dc3` |
 | Player/PhotonVRPlayer.cs | `07487eeb44e22e24797eac37cb1fd900` |
 | Player/PhotonVRPlayerBody.cs | `9eb52b1fff31a5548a4f8247608f70be` |
 | Player/PhotonVRPlayerName.cs | `684d96d703aa09d4fa0bf7c6aacd0fe8` |
-| Player/PlayerSpawner.cs | `78d3497c3b66e9649ae05b126a352e19` |
+| PlayerSpawner.cs (now Runtime/Networking) | `78d3497c3b66e9649ae05b126a352e19` |
 | Saving/PhotonVRValueSaver.cs | `3109970f097083047b01b4710a7b79f6` |
 | Testing/PhotonVRColourChanger.cs | `24e3aeca6354b664b857f2cee2138c12` |
-| Testing/PhotonVRColourChangerGUI.cs | `81ec5a0df0fa84543a25f1b5607f0667` |
+| Testing/PhotonVRColourChangerGUI.cs (now Editor/Inspectors/Testing) | `81ec5a0df0fa84543a25f1b5607f0667` |
 | Testing/PhotonVRCosmeticsChanger.cs | `743007f78c92da84c998c61d724a48a1` |
-| Testing/PhotonVRCosmeticsChangerGUI.cs | `a49b941d8e35ec34e97fea359f48fd34` |
+| Testing/PhotonVRCosmeticsChangerGUI.cs (now Editor/Inspectors/Testing) | `a49b941d8e35ec34e97fea359f48fd34` |
+
+Unity resolves scripts by GUID, not by path, so the 1.0.1 folder moves do not affect existing references.
 Art assets (VRHead/VRBody/VRHand/VRTopHat/VRSunglasses .fbx, materials, logos) keep their original GUIDs too.
 
 ## `Photon.VR.PhotonVRManager : MonoBehaviourPunCallbacks`
 Fields and properties:
 - ✅ `public static PhotonVRManager Manager { get; private set; }`
-- ✅ `public string AppId;` ✅ `public string VoiceAppId;` ✅ `public string Region = "eu";`
+- ✅ `AppId` / `VoiceAppId`: still `public string`, but since 1.0.1 they are **properties** backed by encrypted storage
+  (get decrypts, set encrypts). Source compatible for reads and writes; old serialized plaintext values are migrated
+  through `[FormerlySerializedAs]`. Code that uses them with `ref`/`out` or reflection on fields would need a change.
+- ✅ `public string Region = "eu";`
 - ✅ `public Transform Head;` ✅ `public Transform LeftHand;` ✅ `public Transform RightHand;`
 - ✅ `public Color Colour;`
 - ✅ `public Dictionary<string, string> Cosmetics { get; private set; }`
@@ -130,6 +135,8 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
 - The original changed `LocalPlayer.CustomProperties` directly on connect. Photon VR Plus uses `SetCustomProperties`.
 - The original refreshed by RPC right after `SetCustomProperties`, which could race the property update. Photon VR Plus also
   refreshes in `OnPlayerPropertiesUpdate`. The RPC is still sent for old clients.
-- The original synced head and hands with three `PhotonTransformView`s. Photon VR Plus serializes them in `PhotonVRPlayer`
-  (snapshot interpolation). Legacy prefabs that still have the transform views are handled automatically.
+- The original synced head and hands with three `PhotonTransformView`s. Photon VR Plus serializes them in `PhotonVRPoseSync`
+  (snapshot interpolation; in 1.0.0 this lived in `PhotonVRPlayer`). Legacy prefabs that still have the transform
+  views, or still observe `PhotonVRPlayer`, are converted at runtime: the pose sync is added and becomes the only
+  observed component.
 - The original `CheckDefaultValues` read `AppIdFusion` by mistake. Photon VR Plus reads `AppIdRealtime`.

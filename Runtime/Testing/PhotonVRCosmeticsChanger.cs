@@ -1,4 +1,3 @@
-// Photon VR Plus - based on PhotonVR by fchb1239 (MIT). See LICENSE.md.
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,6 +5,7 @@ using UnityEngine;
 namespace Photon.VR.Testing
 {
     /// <summary>Test helper: press "Change" in the inspector (in play mode, in a room) to equip the listed cosmetics.</summary>
+    [AddComponentMenu("PhotonVR/Testing/Cosmetics Changer")]
     public class PhotonVRCosmeticsChanger : MonoBehaviour
     {
         public List<PhotonVRCosmeticTest> Cosmetics = new List<PhotonVRCosmeticTest>();

@@ -1,8 +1,10 @@
-// Photon VR Plus - based on PhotonVR by fchb1239 (MIT). See LICENSE.md.
 using System;
+using System.Reflection;
 using UnityEngine;
 
+using Photon.Pun;
 using Photon.Realtime;
+
 using Photon.Voice.Unity;
 
 namespace Photon.VR
@@ -16,6 +18,7 @@ namespace Photon.VR
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-90)]
+    [AddComponentMenu("PhotonVR/PhotonVR Voice")]
     public class PhotonVRVoice : MonoBehaviour
     {
         public static PhotonVRVoice Instance { get; private set; }
@@ -37,12 +40,13 @@ namespace Photon.VR
         {
             if (Instance != null && Instance != this)
             {
-                Debug.LogWarning("[PhotonVR] Multiple PhotonVRVoice objects - destroying the duplicate on " + name);
-                Destroy(gameObject);
+                PhotonVRLog.Warn("Multiple PhotonVRVoice objects - removing the duplicate on " + name, this);
+                Destroy(this);
                 return;
             }
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            // Works both standalone and as a child of the PhotonVRManager prefab.
+            DontDestroyOnLoad(transform.root.gameObject);
 
             Connection = FindVoiceConnection();
             if (Connection == null)
@@ -56,7 +60,7 @@ namespace Photon.VR
             if (Connection != null)
                 Connection.PrimaryRecorder = Recorder;
             else
-                Debug.LogError("[PhotonVR] Could not find or create a Photon Voice PUN client. Is Photon Voice 2 imported?");
+                PhotonVRLog.Error("Could not find or create a Photon Voice PUN client. Is Photon Voice 2 imported?", this);
 
             Recorder.TransmitEnabled = TransmitOnStart;
             Recorder.VoiceDetection = UseVoiceDetection;
@@ -88,17 +92,77 @@ namespace Photon.VR
         }
 
         /// <summary>
-        /// Called by PhotonVRManager on connect. The PUN voice client normally copies PhotonServerSettings
-        /// ("Use PUN App Settings"); this also fills its own Settings in case that option is turned off.
+        /// Called by PhotonVRManager right before connecting. Gives the voice client its own copy of the connection
+        /// settings (with the decrypted Voice App ID) and turns off "Use PUN App Settings", so the Voice App ID never
+        /// has to be written into the shared PhotonServerSettings asset.
         /// </summary>
+        public static void ApplyAppSettings(AppSettings punSettings)
+        {
+            if (punSettings == null) return;
+            VoiceConnection vc = Instance != null && Instance.Connection != null ? Instance.Connection : FindVoiceConnection();
+            if (vc == null)
+                return;
+
+            var voiceSettings = new AppSettings();
+            punSettings.CopyTo(voiceSettings);
+            vc.Settings = voiceSettings;
+
+            if (!SetMember(vc, "UsePunAppSettings", false) && !SetMember(vc, "usePunAppSettings", false))
+            {
+                // Very old Voice versions: fall back to the shared settings (in memory only).
+                PhotonVRLog.Warn("This Photon Voice version has no UsePunAppSettings switch - the Voice App ID is passed through PhotonServerSettings in memory.");
+                PhotonNetwork.PhotonServerSettings.AppSettings.AppIdVoice = punSettings.AppIdVoice;
+            }
+        }
+
+        /// <summary>v1.0.0 overload: applies a Voice App ID and region to the voice client's own settings.</summary>
         public static void ApplyAppSettings(string voiceAppId, string fixedRegion)
         {
             VoiceConnection vc = Instance != null && Instance.Connection != null ? Instance.Connection : FindVoiceConnection();
-            if (vc == null || vc.Settings == null)
-                return;
+            if (vc == null) return;
+            if (vc.Settings == null) vc.Settings = new AppSettings();
             vc.Settings.AppIdVoice = voiceAppId;
             if (!string.IsNullOrEmpty(fixedRegion))
                 vc.Settings.FixedRegion = fixedRegion;
+        }
+
+        // Used by memory hardening: blank / restore the Voice App ID held by the voice client.
+        internal static void ScrubAppSettings()
+        {
+            VoiceConnection vc = Instance != null && Instance.Connection != null ? Instance.Connection : FindVoiceConnection();
+            if (vc != null && vc.Settings != null)
+                vc.Settings.AppIdVoice = string.Empty;
+        }
+
+        internal static void RestoreVoiceAppId(string voiceAppId)
+        {
+            VoiceConnection vc = Instance != null && Instance.Connection != null ? Instance.Connection : FindVoiceConnection();
+            if (vc == null) return;
+            if (vc.Settings == null) vc.Settings = new AppSettings();
+            vc.Settings.AppIdVoice = voiceAppId;
+        }
+
+        /// <summary>Makes voice connect to the same cloud region PUN ended up in (called on OnConnectedToMaster).</summary>
+        public static void FollowRegion(string cloudRegion)
+        {
+            if (string.IsNullOrEmpty(cloudRegion)) return;
+            VoiceConnection vc = Instance != null && Instance.Connection != null ? Instance.Connection : FindVoiceConnection();
+            if (vc == null || vc.Settings == null) return;
+            int slash = cloudRegion.IndexOf('/');
+            vc.Settings.FixedRegion = slash > 0 ? cloudRegion.Substring(0, slash) : cloudRegion;
+        }
+
+        private static bool SetMember(object target, string memberName, object value)
+        {
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            for (Type t = target.GetType(); t != null && t != typeof(MonoBehaviour); t = t.BaseType)
+            {
+                PropertyInfo p = t.GetProperty(memberName, flags);
+                if (p != null && p.CanWrite) { p.SetValue(target, value); return true; }
+                FieldInfo f = t.GetField(memberName, flags);
+                if (f != null) { f.SetValue(target, value); return true; }
+            }
+            return false;
         }
 
         private static VoiceConnection FindVoiceConnection()

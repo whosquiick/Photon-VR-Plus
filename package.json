@@ -1,7 +1,7 @@
 {
   "name": "com.photonvrplus.core",
   "displayName": "Photon VR Plus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "unity": "2020.3",
   "description": "Photon VR Plus: a rebuilt, drop-in replacement for PhotonVR (fchb1239). It covers Photon PUN 2 VR networking for Gorilla Tag-style games: App ID + Voice App ID settings, Photon Voice, a networked player prefab with Head/Face/Body/LeftHand/RightHand cosmetic slots, smooth head/hand sync, reconnects and room helpers. It keeps the original class names, fields and cosmetic keys. Requires PUN 2 and Photon Voice 2 from the Asset Store, plus TextMeshPro.",
   "keywords": [

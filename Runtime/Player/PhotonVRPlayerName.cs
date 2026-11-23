@@ -1,10 +1,10 @@
-// Photon VR Plus - a revamp of PhotonVR by fchb1239 (MIT). See LICENSE.md.
 using UnityEngine;
 
 namespace Photon.VR.Player
 {
     /// <summary>Floats the name tag above the head and turns it (yaw only) to face the local camera.</summary>
-    [DefaultExecutionOrder(100)] // after PhotonVRPlayer moved the head
+    [DefaultExecutionOrder(100)] // after PhotonVRPoseSync moved the head
+    [AddComponentMenu("PhotonVR/PhotonVR Player Name")]
     public class PhotonVRPlayerName : MonoBehaviour
     {
         [Tooltip("How high the text should be above the players head")]

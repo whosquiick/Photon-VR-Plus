@@ -1,14 +1,13 @@
-// Photon VR Plus - a revamp of PhotonVR by fchb1239 (MIT). See LICENSE.md.
-// NOTE: intentionally in the global namespace, exactly like the original, so existing references keep compiling.
 using UnityEngine;
 
-/// <summary>
-/// Keeps the body under the head: same X/Z, head Y + Offset, and yaw-only rotation (no tilting with the head).
-/// </summary>
-[DefaultExecutionOrder(100)] // after PhotonVRPlayer moved the head
+/// <summary>Keeps the body under the head: same X/Z, head Y + Offset, and yaw-only rotation (no tilting with the head).</summary>
+[DefaultExecutionOrder(100)] // after PhotonVRPoseSync moved the head
+[AddComponentMenu("PhotonVR/PhotonVR Player Body")]
 public class PhotonVRPlayerBody : MonoBehaviour
 {
+    /// <summary>The head to follow.</summary>
     public Transform Head;
+    /// <summary>Vertical offset from the head (negative = below).</summary>
     public float Offset;
 
     [Tooltip("0 = snap to the head's yaw every frame (original behaviour). Higher values make the body turn smoothly.")]
