@@ -43,6 +43,16 @@ namespace Photon.VR
             return found;
         }
 
+        /// <summary>Tints every <see cref="PhotonVRCosmetic"/> under a container ("" or invalid = no tint).</summary>
+        public static void ApplyTint(Transform container, string htmlColour)
+        {
+            if (container == null) return;
+            Color? tint = null;
+            if (!string.IsNullOrEmpty(htmlColour) && ColorUtility.TryParseHtmlString(htmlColour, out Color c)) tint = c;
+            foreach (PhotonVRCosmetic cos in container.GetComponentsInChildren<PhotonVRCosmetic>(true))
+                cos.ApplyTint(tint);
+        }
+
         /// <summary>Lists the cosmetic IDs available under a container.</summary>
         public static List<string> GetAvailable(Transform container)
         {

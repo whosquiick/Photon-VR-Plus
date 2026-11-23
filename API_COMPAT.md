@@ -140,3 +140,18 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
   views, or still observe `PhotonVRPlayer`, are converted at runtime: the pose sync is added and becomes the only
   observed component.
 - The original `CheckDefaultValues` read `AppIdFusion` by mistake. Photon VR Plus reads `AppIdRealtime`.
+
+## 1.1.0 notes
+- Nothing renamed or removed. All new types are additive (`Photon.VR`, `Photon.VR.Player`, `Photon.VR.Interaction`,
+  `Photon.VR.Debugging`, `Photon.VR.Saving`, `Photon.VR.Samples`, `Photon.VR.PlayFab`).
+- Behaviour changes:
+  - `SetUsername` silently refuses names blocked by the word filter or longer than 24 characters.
+  - Rich-text tags are stripped from names.
+  - `JoinPrivateRoom` refuses codes the filter blocks.
+  - `PhotonVRVoice.IsMuted` reflects the user's mute toggle, not push-to-talk state.
+  - Spectators get no avatar.
+- New Photon custom properties:
+  - `CosmeticTints` (player), `pvr_spectator`, `pvr_ping` (player), `pvr_private` (room).
+  - Event codes 180 (profile), 181 (master handoff), 182 (kick) are reserved by Photon VR Plus.
+- New PlayerPrefs keys: `CosmeticTints`, `PhotonVRMuted` (and `PhotonVRSave` if you register `PhotonVRPlayerPrefsSaveProvider`).
+- `PhotonNetwork.EnableCloseConnection` is forced off; use `PhotonVRModeration.Kick`.

@@ -8,6 +8,7 @@ using UnityEngine.Serialization;
 using Photon.Pun;
 using Photon.Realtime;
 using Photon.VR.Player;
+using Photon.VR.Saving;
 
 namespace Photon.VR
 {
@@ -80,6 +81,9 @@ namespace Photon.VR
         /// <summary>The local player's cosmetics: slot name to cosmetic ID. Change with <see cref="SetCosmetic"/> / <see cref="SetCosmetics"/>.</summary>
         public Dictionary<string, string> Cosmetics { get; private set; } = new Dictionary<string, string>();
 
+        /// <summary>Per-slot tint colours ("#RRGGBBAA"). Change with <see cref="SetCosmeticTint"/>.</summary>
+        public Dictionary<string, string> CosmeticTints { get; private set; } = new Dictionary<string, string>();
+
         [Header("Networking")]
         [Tooltip("Queue joined by JoinRoomOnConnect and the inspector Join button.")]
         public string DefaultQueue = "Default";
@@ -89,6 +93,10 @@ namespace Photon.VR
         public int SendRate = 30;
         [Tooltip("PhotonNetwork.SerializationRate (pose updates per second). Photon's default is 10; 15-20 looks smoother for VR but uses more messages.")]
         public int SerializationRate = 15;
+        [Tooltip("Per-platform overrides for the two rates above (e.g. lower on Android / Quest to save battery and messages).")]
+        public List<PhotonVRPlatformRates> PlatformRates = new List<PhotonVRPlatformRates>();
+        [Tooltip("Share UserIds in rooms (needed for identity checks, bans and mute lists that survive rejoining).")]
+        public bool PublishUserIds = true;
 
         [Header("Reconnect")]
         [Tooltip("Automatically reconnect after an unexpected disconnect (timeouts, network loss).")]
@@ -178,6 +186,7 @@ namespace Photon.VR
                 Settings = PhotonVRSettings.LoadDefault();
 
             InitMemoryHardening();
+            PhotonVRSecurity.Initialize();
             LoadSavedValues();
         }
 
@@ -235,6 +244,12 @@ namespace Photon.VR
                 legacyVoiceAppId = string.Empty;
                 migratedLegacyIds = true;
             }
+        }
+
+        private void Update()
+        {
+            if (Manager == this)
+                PhotonVRSaveSystem.Tick();
         }
 
         private void OnDestroy()
@@ -323,5 +338,14 @@ namespace Photon.VR
         }
 
         #endregion
+    }
+
+    /// <summary>Send / serialization rates for one platform (0 = keep the manager value).</summary>
+    [Serializable]
+    public class PhotonVRPlatformRates
+    {
+        public RuntimePlatform Platform = RuntimePlatform.Android;
+        public int SendRate = 20;
+        public int SerializationRate = 10;
     }
 }

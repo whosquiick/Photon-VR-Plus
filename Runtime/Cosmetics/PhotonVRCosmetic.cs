@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -19,6 +20,12 @@ namespace Photon.VR
         [Tooltip("Human readable name for shops / menus.")]
         public string DisplayName = "";
 
+        [Header("Tint")]
+        [Tooltip("Renderers coloured by PhotonVRManager.SetCosmeticTint. Empty = not tintable.")]
+        public List<Renderer> TintRenderers = new List<Renderer>();
+        [Tooltip("Material slots to tint on each renderer. Empty = all.")]
+        public List<int> TintMaterialIndices = new List<int>();
+
         /// <summary>Invoked when the cosmetic gets equipped (its GameObject is enabled).</summary>
         public UnityEvent OnEquipped = new UnityEvent();
         /// <summary>Invoked when the cosmetic gets unequipped (its GameObject is disabled).</summary>
@@ -29,6 +36,37 @@ namespace Photon.VR
 
         /// <summary>The effective display name: <see cref="DisplayName"/>, or <see cref="Id"/>.</summary>
         public string Label => string.IsNullOrEmpty(DisplayName) ? Id : DisplayName;
+
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private MaterialPropertyBlock block;
+
+        /// <summary>Applies a tint (null removes it). Uses property blocks, so shared materials stay untouched.</summary>
+        public void ApplyTint(Color? tint)
+        {
+            if (TintRenderers == null) return;
+            if (block == null) block = new MaterialPropertyBlock();
+            foreach (Renderer r in TintRenderers)
+            {
+                if (r == null) continue;
+                int count = r.sharedMaterials.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    if (TintMaterialIndices != null && TintMaterialIndices.Count > 0 && !TintMaterialIndices.Contains(i)) continue;
+                    if (tint.HasValue)
+                    {
+                        r.GetPropertyBlock(block, i);
+                        block.SetColor(ColorId, tint.Value);
+                        block.SetColor(BaseColorId, tint.Value);
+                        r.SetPropertyBlock(block, i);
+                    }
+                    else
+                    {
+                        r.SetPropertyBlock(null, i);
+                    }
+                }
+            }
+        }
 
         private void OnEnable() => OnEquipped?.Invoke();
         private void OnDisable() => OnUnequipped?.Invoke();

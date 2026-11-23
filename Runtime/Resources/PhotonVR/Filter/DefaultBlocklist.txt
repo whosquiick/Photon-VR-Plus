@@ -1,0 +1,129 @@
+# Photon VR Plus default blocklist (names + room codes).
+# Edit freely, or leave this file alone and add your own lists in a PhotonVRBlocklist asset.
+#   word        blocked anywhere in the text (letters may repeat: "fuuuck")
+#   =word       blocked only as a whole word (for short words that appear inside normal words)
+#   raw:1234    the digits exactly as typed (hate codes)
+# Text is normalised first: accents removed, leetspeak / look-alikes mapped (n1gg -> nigg, b!tch -> bitch).
+
+# Racial / ethnic slurs
+nigg
+nigga
+nigger
+niglet
+negro
+=nig
+=nog
+coon
+chink
+gook
+=spic
+spick
+wetback
+beaner
+kike
+=yid
+raghead
+towelhead
+sandnigger
+paki
+=gyp
+gypsy
+=jap
+zipperhead
+honky
+redskin
+=injun
+porchmonkey
+junglebunny
+
+# Homophobic / transphobic
+fag
+faggot
+=dyke
+tranny
+shemale
+=homo
+=lesbo
+
+# Ableist
+retard
+retarded
+=tard
+spaz
+mongoloid
+
+# Profanity
+fuck
+fuk
+fck
+=fk
+motherfucker
+shit
+=sht
+bitch
+biatch
+cunt
+=twat
+=prick
+dick
+cock
+pussy
+=puss
+asshole
+=arse
+arsehole
+=ass
+=asses
+bastard
+whore
+=hoe
+slut
+=wank
+wanker
+bollocks
+=damn
+goddamn
+bullshit
+
+# Sexual
+=sex
+sexy
+porn
+=cum
+cumshot
+jizz
+=penis
+vagina
+=tits
+titties
+boob
+=dildo
+blowjob
+handjob
+orgasm
+horny
+=nude
+nudes
+hentai
+=rape
+raping
+rapist
+molest
+pedo
+pedophile
+paedo
+incest
+
+# Extremism / violence
+nazi
+hitler
+=heil
+siegheil
+kkk
+=isis
+genocide
+holocaust
+killyourself
+=kys
+raw:1488
+raw:14 88

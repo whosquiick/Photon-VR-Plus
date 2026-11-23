@@ -24,6 +24,8 @@ namespace Photon.VR
         [Range(0f, 1f)] public float SpatialBlend = 1f;
         [Tooltip("Max hearing distance of a Speaker created at runtime.")]
         public float MaxDistance = 50f;
+        [Tooltip("Applies a spatial voice preset to the speaker. Custom = keep the AudioSource settings.")]
+        public PhotonVRVoicePreset Preset = PhotonVRVoicePreset.Custom;
 
         /// <summary>The PhotonVoiceView of this player.</summary>
         public PhotonVoiceView VoiceView { get; private set; }
@@ -74,10 +76,39 @@ namespace Photon.VR
                 Speaker = speakerGo.AddComponent<Speaker>();
             }
             Source = Speaker.GetComponent<AudioSource>();
+            PhotonVRVoicePresets.Apply(Source, Preset);
 
             VoiceView = GetComponent<PhotonVoiceView>();
             if (VoiceView == null)
                 VoiceView = gameObject.AddComponent<PhotonVoiceView>();
+        }
+
+        /// <summary>Changes the voice preset of this player at runtime.</summary>
+        public void ApplyPreset(PhotonVRVoicePreset preset)
+        {
+            Preset = preset;
+            PhotonVRVoicePresets.Apply(Source, preset);
+        }
+
+        /// <summary>Applies a preset to every spawned player.</summary>
+        public static void ApplyPresetToAll(PhotonVRVoicePreset preset)
+        {
+            foreach (var p in Photon.VR.Player.PhotonVRPlayer.All)
+                if (p != null && p.Voice != null) p.Voice.ApplyPreset(preset);
+        }
+
+        private void OnEnable()
+        {
+            PhotonVRMuteList.Changed += ApplyMuteList;
+            ApplyMuteList();
+        }
+
+        private void OnDisable() => PhotonVRMuteList.Changed -= ApplyMuteList;
+
+        private void ApplyMuteList()
+        {
+            if (photonView != null && !photonView.IsMine && Source != null)
+                Source.mute = PhotonVRMuteList.IsMuted(photonView.Owner);
         }
 
         private void Update()

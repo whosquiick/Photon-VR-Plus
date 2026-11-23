@@ -47,6 +47,9 @@ namespace Photon.VR.Player
         [Tooltip("Add PhotonVRPlayerVoice (PhotonVoiceView + Speaker) at runtime when the prefab has none.")]
         public bool AutoSetupVoice = true;
 
+        /// <summary>The name shown for this player (their own published name, filtered).</summary>
+        public string DisplayName { get; private set; } = "";
+
         /// <summary>Every PhotonVRPlayer currently spawned (local and remote).</summary>
         public static IReadOnlyList<PhotonVRPlayer> All => all;
         private static readonly List<PhotonVRPlayer> all = new List<PhotonVRPlayer>();
@@ -238,18 +241,36 @@ namespace Photon.VR.Player
             if (owner == null)
                 return;
 
-            // Name
+            // Prefer the profile the owner published themselves (see PhotonVRProfiles); custom properties can be
+            // written by anyone, so they are only used for clients without a profile (e.g. the original PhotonVR).
+            string colourJson = null;
+            Dictionary<string, string> cosmetics = null, tints = null;
+            if (PhotonVRProfiles.TryGet(owner.ActorNumber, out PhotonVRProfile profile))
+            {
+                colourJson = profile.ColourJson;
+                cosmetics = profile.Cosmetics;
+                tints = profile.Tints;
+            }
+            else
+            {
+                if (owner.CustomProperties.TryGetValue(PhotonVRKeys.Colour, out object colourObj)) colourJson = colourObj as string;
+                if (owner.CustomProperties.TryGetValue(PhotonVRKeys.Cosmetics, out object cosObj)) cosmetics = PhotonVRCosmeticUtility.ToStringDictionary(cosObj);
+                if (owner.CustomProperties.TryGetValue(PhotonVRKeys.CosmeticTints, out object tintObj)) tints = PhotonVRCosmeticUtility.ToStringDictionary(tintObj);
+            }
+
+            // Name (filtered, rich text stripped)
+            DisplayName = PhotonVRProfiles.DisplayName(owner);
             if (NameText != null)
-                NameText.text = owner.NickName;
+                NameText.text = DisplayName;
 
             // Colour
-            if (owner.CustomProperties.TryGetValue(PhotonVRKeys.Colour, out object colourObj) && colourObj is string colourJson && !string.IsNullOrEmpty(colourJson))
+            if (!string.IsNullOrEmpty(colourJson))
                 ApplyColour(ParseColour(colourJson));
 
             // Cosmetics
-            if (owner.CustomProperties.TryGetValue(PhotonVRKeys.Cosmetics, out object cosObj))
+            if (cosmetics != null)
             {
-                foreach (KeyValuePair<string, string> cosmetic in PhotonVRCosmeticUtility.ToStringDictionary(cosObj))
+                foreach (KeyValuePair<string, string> cosmetic in cosmetics)
                 {
                     appliedCosmetics[cosmetic.Key] = cosmetic.Value;
                     CosmeticSlot slot = GetSlot(cosmetic.Key);
@@ -257,6 +278,10 @@ namespace Photon.VR.Player
                         slot.Equip(cosmetic.Value);
                 }
             }
+            if (CosmeticSlots != null)
+                foreach (CosmeticSlot slot in CosmeticSlots)
+                    if (slot != null)
+                        PhotonVRCosmeticUtility.ApplyTint(slot.Object, tints != null && tints.TryGetValue(slot.SlotName ?? "", out string t) ? t : null);
 
             ValuesRefreshed?.Invoke(this);
         }
@@ -298,8 +323,13 @@ namespace Photon.VR.Player
             public string SlotName;
             public Transform Object;
 
-            /// <summary>Enables the cosmetic <paramref name="cosmeticId"/> and disables all others ("" clears the slot).</summary>
-            public void Equip(string cosmeticId) => PhotonVRCosmeticUtility.Equip(Object, cosmeticId);
+            /// <summary>Enables the cosmetic <paramref name="cosmeticId"/> and disables all others ("" clears the slot).
+            /// IDs registered in <see cref="PhotonVRCosmeticRegistry"/> are spawned into the slot first.</summary>
+            public void Equip(string cosmeticId)
+            {
+                PhotonVRCosmeticRegistry.EnsureLoaded(Object, SlotName, cosmeticId);
+                PhotonVRCosmeticUtility.Equip(Object, cosmeticId);
+            }
 
             /// <summary>IDs of every cosmetic available in this slot.</summary>
             public List<string> GetAvailableCosmetics() => PhotonVRCosmeticUtility.GetAvailable(Object);

@@ -1,5 +1,67 @@
 # Changelog
 
+## [1.1.0] - 2026-11-23
+Networking, security and moderation release. Still a drop-in replacement: no class, namespace, public member, GUID,
+PlayerPrefs key or Photon property key was renamed or removed.
+
+### Added
+- **Security layer** (`PhotonVRSecurity`, set up by the manager):
+  - master-client validation with hijack detection, reclaim and kick (`PhotonVRMasterClient`), plus validated handoff
+    (`HandOffTo`, `HandOffToBest`);
+  - validated kicks and session bans (`PhotonVRModeration`), with PUN `CloseConnection` disabled;
+  - profiles (name, colour, cosmetics, tints) sent as server-stamped events, so players can only change their own,
+    and tampered properties are restored;
+  - identity checks: duplicate or banned UserIds, `PhotonVRAuthority.ValidateIdentity`;
+  - owner checks and rate limits on pose sync, grabbables and RPCs (`PhotonVRRpc`);
+  - violation reporting with `ViolationDetected`, `ReportPlayer`, `KickAfterViolations`, and an authority hook
+    (`PhotonVRAuthority`) for a backend.
+- **Banned-word filter** (`PhotonVRWordFilter`, `PhotonVRBlocklist` asset, default lists in
+  `Resources/PhotonVR/Filter`):
+  - normalises accents, leetspeak, look-alike letters, repeated letters and spaced-out letters, and has an allowlist;
+  - applied to names, room codes and displayed names;
+  - new events `UsernameRejected` and `RoomCodeRejected`.
+- **Matchmaking**: `PhotonVRMatchmaking` (readable room codes, `JoinByCode`, `JoinPublic`, region switching / best
+  region, player caps, spectators), and `PhotonVRManager.JoinRoomByCode`.
+- **Ownership** helpers (`PhotonVROwnership`).
+- **Grabbing**: networked grabbable/throwable objects (`PhotonVRGrabbable`, `PhotonVRGrabber`).
+- **Voice**:
+  - talk modes (open mic, push-to-talk with XR button / key / API, voice activation);
+  - spatial presets (`PhotonVRVoicePreset`);
+  - a per-player mute list (`PhotonVRMuteList`);
+  - spectators muted by default.
+- **Cosmetic registry** (`PhotonVRCosmeticRegistry`): cosmetics spawned on demand without editing the player prefab.
+  Also cosmetic tints (`SetCosmeticTint`, `PhotonVRCosmetic.TintRenderers`).
+- **Player extras**: `PhotonVREmotes`, `PhotonVRBodyIK`, `PhotonVRNameplate` (name, speaking and muted icons), and
+  `PhotonVRPlayer.DisplayName`.
+- **Debugging**: `PhotonVRDebugOverlay` (ping, region, rates, room, players and flags, owned views).
+- **Saving**: `PhotonVRSaveSystem` with pluggable `IPhotonVRSaveProvider`, a PlayerPrefs provider and debounced saves.
+- **PlayFab**: optional adapter (`PhotonVRPlayFabAuth`, `PhotonVRPlayFabSaveProvider`) in its own assembly that only
+  compiles with `PHOTONVR_PLAYFAB`. Tools > PhotonVR > PlayFab > Enable Integration.
+- **Samples and tests**: Lobby and Playground samples (`Samples~`), plus edit-mode tests (word filter, room codes, rate
+  limiter, ID protection).
+- **Editor**: Tools > PhotonVR > Create Blocklist Asset / Create Cosmetic Registry.
+- `PhotonVRManager`:
+  - `PlatformRates` sets send and serialization rates per platform;
+  - `PublishUserIds`;
+  - `ConnectWithAuthentication(AuthenticationValues)`.
+
+### Changed
+- `PhotonVRPoseSync`:
+  - the interpolation delay adapts to jitter;
+  - remote hands are smoothed and clamped to `MaxHandReach`;
+  - packets from non-owners, bad values and floods are dropped;
+  - the buffer is now 16.
+- `SetUsername` now ignores blocked or over-long names (use `TrySetUsername` to get the result). Rich-text tags are
+  stripped from names.
+- `CreateRoomCode` skips codes the filter blocks.
+- `PhotonVRVoice.IsMuted` reports your mute toggle; push-to-talk no longer reads as muted.
+- The player spawner does not spawn an avatar for spectators.
+
+### Security notes
+Everything above runs on the players' clients. It protects honest players from what a modded client sends, but cannot
+stop a modded client from sending it. Real enforcement needs a Photon Server plugin or an authoritative backend; see
+README > Security.
+
 ## [1.0.1] - 2026-11-23
 Clean-up and hardening release. Still a drop-in replacement: class names, namespaces, public members,
 cosmetic slot names, Photon property keys and all 11 original script GUIDs are unchanged.

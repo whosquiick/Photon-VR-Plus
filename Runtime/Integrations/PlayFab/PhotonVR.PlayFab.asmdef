@@ -1,0 +1,21 @@
+{
+    "name": "PhotonVR.PlayFab",
+    "rootNamespace": "Photon.VR.PlayFab",
+    "references": [
+        "PhotonVR",
+        "PhotonUnityNetworking",
+        "PhotonRealtime",
+        "PlayFab"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "PHOTONVR_PLAYFAB"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

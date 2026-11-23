@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.XR;
 
 using Photon.Pun;
 using Photon.Realtime;
@@ -29,6 +30,24 @@ namespace Photon.VR
         public bool TransmitOnStart = true;
         [Tooltip("Only transmit while you are talking (voice detection).")]
         public bool UseVoiceDetection = false;
+
+        [Header("Talk mode")]
+        public PhotonVRTalkMode TalkMode = PhotonVRTalkMode.OpenMic;
+        [Tooltip("XR controller button that holds push-to-talk.")]
+        public PhotonVRXRButton PushToTalkButton = PhotonVRXRButton.Secondary;
+        public XRNode PushToTalkHand = XRNode.LeftHand;
+        [Tooltip("Keyboard key for push-to-talk in desktop / editor testing (legacy Input Manager only).")]
+        public KeyCode PushToTalkKey = KeyCode.V;
+        [Tooltip("Let spectators talk.")]
+        public bool SpectatorsCanTalk = false;
+
+        /// <summary>True while push-to-talk is held (any source).</summary>
+        public static bool PushToTalkHeld => Instance != null && (Instance.externalPushToTalk || Instance.inputPushToTalk);
+
+        private bool userMuted;
+        private bool externalPushToTalk;
+        private bool inputPushToTalk;
+        private bool legacyInputAvailable = true;
 
         /// <summary>The PUN voice client (PunVoiceClient / PhotonVoiceNetwork).</summary>
         public VoiceConnection Connection { get; private set; }
@@ -62,8 +81,53 @@ namespace Photon.VR
             else
                 PhotonVRLog.Error("Could not find or create a Photon Voice PUN client. Is Photon Voice 2 imported?", this);
 
-            Recorder.TransmitEnabled = TransmitOnStart;
-            Recorder.VoiceDetection = UseVoiceDetection;
+            userMuted = !TransmitOnStart;
+            Recorder.VoiceDetection = UseVoiceDetection || TalkMode == PhotonVRTalkMode.VoiceActivation;
+            ApplyTransmit();
+        }
+
+        private void Update()
+        {
+            if (Recorder == null) return;
+            inputPushToTalk = TalkMode == PhotonVRTalkMode.PushToTalk && ReadPushToTalkInput();
+            ApplyTransmit();
+        }
+
+        private void ApplyTransmit()
+        {
+            if (Recorder == null) return;
+            bool spectatorBlocked = !SpectatorsCanTalk && PhotonVRMatchmaking.IsLocalSpectator;
+            bool talk = !userMuted && !spectatorBlocked &&
+                        (TalkMode != PhotonVRTalkMode.PushToTalk || externalPushToTalk || inputPushToTalk);
+            if (Recorder.TransmitEnabled != talk)
+                Recorder.TransmitEnabled = talk;
+        }
+
+        private bool ReadPushToTalkInput()
+        {
+            if (PhotonVRXRInput.GetButton(PushToTalkHand, PushToTalkButton))
+                return true;
+            if (!legacyInputAvailable || PushToTalkKey == KeyCode.None) return false;
+            try { return Input.GetKey(PushToTalkKey); }
+            catch (InvalidOperationException) { legacyInputAvailable = false; return false; } // new Input System only
+        }
+
+        /// <summary>Drive push-to-talk from your own input code (UI button, Input System action).</summary>
+        public static void SetPushToTalk(bool held)
+        {
+            if (Instance == null) return;
+            Instance.externalPushToTalk = held;
+            Instance.ApplyTransmit();
+        }
+
+        /// <summary>Switches the talk mode at runtime.</summary>
+        public static void SetTalkMode(PhotonVRTalkMode mode)
+        {
+            if (Instance == null) return;
+            Instance.TalkMode = mode;
+            if (Instance.Recorder != null)
+                Instance.Recorder.VoiceDetection = Instance.UseVoiceDetection || mode == PhotonVRTalkMode.VoiceActivation;
+            Instance.ApplyTransmit();
         }
 
         private void OnDestroy()
@@ -76,12 +140,13 @@ namespace Photon.VR
         public static void SetMuted(bool muted)
         {
             if (Instance == null || Instance.Recorder == null) return;
-            Instance.Recorder.TransmitEnabled = !muted;
+            Instance.userMuted = muted;
+            Instance.ApplyTransmit();
             MuteChanged?.Invoke(muted);
         }
 
         /// <summary>True if your microphone is not transmitting.</summary>
-        public static bool IsMuted => Instance == null || Instance.Recorder == null || !Instance.Recorder.TransmitEnabled;
+        public static bool IsMuted => Instance == null || Instance.Recorder == null || Instance.userMuted;
 
         /// <summary>Toggles mute and returns the new state (true = muted).</summary>
         public static bool ToggleMute()

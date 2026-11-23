@@ -11,6 +11,9 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - Ready-made prefabs: the networked **Player**, a drop-in **PhotonVRManager** (manager + voice + spawner) and a sample cosmetic.
 - App IDs stored **encrypted**, with optional in-memory hardening (see [Protecting your App IDs](#protecting-your-app-ids)).
 - Auto-reconnect, room helpers, events, null-safe code and an editor menu that sets up everything for you.
+- **New in 1.1.0:** master-client and ownership validation, blocked kicks and renames, a banned-word filter for names and
+  room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, emotes, simple body IK, nameplates,
+  room codes, spectators, a debug overlay, a cosmetic registry with tints, pluggable saving and an optional PlayFab adapter.
 - **Backwards compatible**: same class names, namespace (`Photon.VR`), public fields, methods, cosmetic names,
   Photon property keys and even script GUIDs. Existing scripts that use PhotonVR compile and work unchanged.
   See [`API_COMPAT.md`](API_COMPAT.md).
@@ -27,7 +30,7 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 Photon Voice 2 already contains PUN 2. If you import only Photon Voice 2, you get both.
 
 ## Install
-**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.0.1.unitypackage`.
+**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.1.0.unitypackage`.
 Everything goes into `Assets/PhotonVR`.
 
 **Option B – UPM:** unzip `PhotonVRPlus-1.0.1-UPM.zip`, then Window > Package Manager > **+** > *Add package from disk…* >
@@ -67,9 +70,15 @@ Runtime/
   Networking/  PhotonVRManager.Connection / .Rooms / .Security, PhotonVRPoseSync, PlayerSpawner
   Player/      PhotonVRPlayer, PhotonVRPlayerBody, PhotonVRPlayerName
   Cosmetics/   PhotonVRManager.PlayerValues, PhotonVRCosmetic, PhotonVRCosmeticSlots, PhotonVRCosmeticUtility
-  Voice/       PhotonVRVoice (voice client + mic), PhotonVRPlayerVoice (per player speaker)
-  Saving/      PhotonVRValueSaver
-  Utilities/   PhotonVRLog, PhotonVRRigFinder, PhotonVRIdProtector, PhotonVRIdVault
+  Voice/       PhotonVRVoice (mic, talk modes), PhotonVRPlayerVoice (per player speaker), presets, mute list, XR input
+  Saving/      PhotonVRValueSaver, PhotonVRSaveSystem (+ PlayerPrefs provider)
+  Security/    PhotonVRSecurity, PhotonVRMasterClient, PhotonVRModeration, PhotonVRProfiles, PhotonVRRpc, PhotonVRAuthority
+  Moderation/  PhotonVRWordFilter, PhotonVRBlocklist
+  Interaction/ PhotonVRGrabbable, PhotonVRGrabber
+  Debugging/   PhotonVRDebugOverlay
+  Integrations/PlayFab/  optional PlayFab adapter (own asmdef, compiles only with PHOTONVR_PLAYFAB)
+  Samples/     PhotonVRLobbyMenu
+  Utilities/   PhotonVRLog, PhotonVRRigFinder, PhotonVRIdProtector, PhotonVRIdVault, PhotonVRRateLimiter
   Testing/     PhotonVRColourChanger, PhotonVRCosmeticsChanger
   Resources/PhotonVR/
     Player.prefab                      networked player (5 cosmetic slots, pose sync, voice)
@@ -78,6 +87,9 @@ Runtime/
     Prefabs/PhotonVRPlayerSpawner.prefab
     Prefabs/Cosmetics/VRSunglasses.prefab   sample cosmetic
     Prefabs/Testing/*                  colour / cosmetic test triggers
+    Filter/DefaultBlocklist.txt, DefaultAllowlist.txt   banned-word data
+Samples~/      Lobby and Playground scenes (Package Manager > Samples; Assets/PhotonVR/Samples in the .unitypackage)
+Tests/Editor/  edit-mode tests (word filter, room codes, rate limiter, ID protection)
 Editor/
   Inspectors/  manager inspector, encrypted-ID drawer, testing inspectors
   Tools/       Setup Scene, Set App IDs window, prefab builders, build check
@@ -214,6 +226,172 @@ A leaked App ID only matters if strangers can use it. Make the server refuse cli
 
 Keep the custom auth endpoint secret on the server side (put shared keys in the dashboard's key/value pairs, not in
 the client).
+
+## Networking features (1.1.0)
+
+### Master client and ownership
+```cs
+PhotonVRMasterClient.HandOffToBest();          // legitimate master only; picks the lowest ping, skips spectators
+PhotonVRMasterClient.HandOffTo(player);
+PhotonVRMasterClient.MasterChanged += (master, legitimate) => { };
+PhotonVROwnership.TransferTo(view, player);    // only the owner or the legitimate master
+StartCoroutine(PhotonVROwnership.RequestAndWait(view, 2f, ok => { }));
+```
+
+### RPC helpers
+```cs
+PhotonVRRpc.ToAll(photonView, nameof(RPC_Hit), damage);
+
+[PunRPC] void RPC_Hit(int damage, PhotonMessageInfo info)
+{
+    if (!PhotonVRRpc.FromOwner(photonView, info, "hit", 5f, 10f)) return;   // owner only + rate limit
+}
+```
+`FromMaster` accepts only the *legitimate* master (see Security); `Rate` is a plain per-sender limit.
+
+### Grabbing and throwing
+Add `PhotonVRGrabbable` to an object with a Rigidbody and PhotonView (scene object or network-instantiated). Add
+`PhotonVRGrabber` to each **rig** hand (not the avatar). The grip grabs the nearest object, ownership is requested and
+handed over, the holder simulates it, and releasing throws with the averaged hand velocity. Call `Grab()` / `Release()`
+yourself if you use another input system. `AllowSteal` decides whether others can take it out of your hand.
+
+### Hand sync
+`PhotonVRPoseSync` now adapts its interpolation delay to measured jitter (`JitterMargin`), smooths remote hands
+(`HandSmoothing`), clamps hands to `MaxHandReach`, drops packets from non-owners and limits packets per second.
+Send rates can be set per platform on the manager (`PlatformRates`, e.g. lower on Android/Quest).
+
+### Voice
+```cs
+PhotonVRVoice.SetTalkMode(PhotonVRTalkMode.PushToTalk);   // OpenMic, PushToTalk, VoiceActivation
+PhotonVRVoice.SetPushToTalk(true);                       // drive it from your own input; or set PushToTalkButton/Hand
+PhotonVRPlayerVoice.ApplyPresetToAll(PhotonVRVoicePreset.Proximity); // Proximity, LargeRoom, Hybrid, Global
+PhotonVRMuteList.Toggle(player);                         // local mute, saved by UserId
+```
+Spectators do not transmit unless `SpectatorsCanTalk` is on.
+
+### Cosmetics without prefab edits
+Create **Tools > PhotonVR > Create Cosmetic Registry** (saved as `Resources/PhotonVRCosmeticRegistry`) and add entries
+(ID, slot, prefab, offset), or call `PhotonVRCosmeticRegistry.Register(...)` at runtime. When a player equips an ID that
+is not already under the slot, it is spawned there. Tints: `PhotonVRManager.SetCosmeticTint("Head", Color.red)`; set
+`TintRenderers` on a `PhotonVRCosmetic` to choose which renderers / material slots take the colour.
+
+### Emotes, body IK, nameplates
+- `PhotonVREmotes` on the player prefab: a list of emotes (visual, sound, animator trigger). `PhotonVREmotes.PlayLocal("wave")`.
+- `PhotonVRBodyIK`: optional two-bone arm IK and torso-follows-head for avatars with arms. Runs from the synced transforms.
+- `PhotonVRNameplate`: billboarded name, speaking icon and muted icon. Shows the filtered, verified name.
+
+### Matchmaking
+```cs
+string code = PhotonVRMatchmaking.CreatePrivateRoom(8);   // "K7MQ2X", filtered, no 0/O/1/I
+PhotonVRMatchmaking.JoinByCode("k7mq2x");                  // fails instead of creating
+PhotonVRMatchmaking.JoinPublic("Default", 10);
+PhotonVRMatchmaking.UseBestRegion();                       // or SwitchRegion("eu")
+PhotonVRMatchmaking.SetSpectator(true);                    // no avatar, no mic
+PhotonVRMatchmaking.MaxPlayersCap = 16;
+```
+
+### Debug overlay
+Add `PhotonVRDebugOverlay` to any object (F3 toggles). It shows state, region, ping, send rates, the room, every player
+with master / spectator / muted flags and violation count, and how many views you own. Assign `WorldText` for VR.
+
+## Security
+
+PUN has no server-side game logic: the Photon Cloud relays messages, and the client that is master is just another
+player's game. Photon VR Plus makes honest clients **refuse and repair** what a modded client tries to do, and reports
+it. It cannot stop a modded client from sending things.
+
+Call `PhotonVRSecurity.Initialize()` yourself only if you don't use `PhotonVRManager` (the manager does it in `Awake`).
+
+| Threat | What 1.1.0 does |
+|---|---|
+| Making yourself master (`SetMasterClient`) | Every client tracks the *legitimate* master. A switch is accepted only when the old master left, or the legitimate master announced a handoff, or your `PhotonVRAuthority` approves it. Otherwise it is logged as a violation, the previous master takes the role back and kicks the hijacker. `FromMaster` RPC checks and kicks only trust the legitimate master. |
+| Kicking / disconnecting others | PUN's `CloseConnection` is disabled (`EnableCloseConnection = false`). Kicks go through `PhotonVRModeration.Kick`, which only the legitimate master can send and every client checks (sender is stamped by the Photon server) and `PhotonVRAuthority.ValidateKick` can veto. Bad attempts are reported. |
+| Renaming others / changing their cosmetics | Names, colours and cosmetics are read from a profile event the **server stamps with the real sender**, so a player can only set their own. If someone overwrites your properties, your client notices and restores them, and reports the writer as `PropertyTamper`. |
+| Joining as someone else | Rooms publish UserIds; the master rejects duplicate UserIds, banned UserIds and anything your `PhotonVRAuthority.ValidateIdentity` rejects. With PlayFab custom auth, the UserId is the verified PlayFabId. |
+| Moving objects you don't own | Pose sync and grabbables ignore serialized data not sent by the owner; `PhotonVRRpc.FromOwner` does the same for RPCs. Ownership requests are rate limited and PUN only accepts transfers from the current owner. |
+| Spam | Per-sender token buckets on profile updates, RPCs, pose packets and grab requests. |
+| Slurs in names and room codes | See [Banned words](#banned-words). Remote names are filtered again on display. |
+
+Hooks:
+```cs
+class MyAuthority : PhotonVRAuthority
+{
+    public override bool? ValidateMasterClient(Player newMaster, Player previous) => null;   // null = default rules
+    public override bool ValidateIdentity(Player player) => MyBackend.IsTicketValid(player.UserId);
+    public override void OnViolation(PhotonVRViolation v) => MyBackend.Report(v.Offender.UserId, v.Type, v.Detail);
+}
+PhotonVRSecurity.Authority = new MyAuthority();
+PhotonVRSecurity.KickAfterViolations = 5;                  // master auto-kicks repeat offenders (0 = off)
+PhotonVRSecurity.ViolationDetected += v => Debug.LogWarning(v);
+PhotonVRSecurity.ReportPlayer(player, "harassment");       // your report button
+PhotonVRModeration.Ban(player, "cheating");                // session ban by UserId, enforced by the master
+```
+
+**What this cannot do (honest limits):**
+- A cheater's own game can do anything it likes locally, and can still write room/player properties and send events.
+  Honest clients ignore or undo those, but the messages still reach the server.
+- Photon does not tell you who wrote a player property, only that it changed. That is why the profile uses events.
+- When the master leaves, clients accept the next master. A hijacker who calls `SetMasterClient` in that same moment
+  and wins the race can be accepted, because nobody legitimate is left to object; your `Authority` can veto it.
+- Bans and the word filter run on clients. A modded client can skip its own filter; everyone else still filters its name.
+- **Real anti-cheat needs an authority outside the players' games**: a Photon Server plugin (Photon Server / Enterprise
+  Cloud), or an authoritative backend such as PlayFab CloudScript / Azure Functions with Photon webhooks, plus custom
+  authentication so only verified accounts can connect. `PhotonVRAuthority` is where you plug that in.
+
+## Banned words
+
+`PhotonVRWordFilter` checks player names (`SetUsername` / `TrySetUsername`), room codes (`JoinPrivateRoom`,
+`JoinByCode`, generated codes) and names shown above remote players.
+
+- The default lists live in `Runtime/Resources/PhotonVR/Filter/DefaultBlocklist.txt` and `DefaultAllowlist.txt`:
+  slurs (racial, homophobic, transphobic, ableist), common swears, sexual terms and extremist terms/numbers.
+- Text is normalised first: lower case, accents removed (`fággot`), leetspeak mapped (`b!tch`, `n1gg`, `$h1t`),
+  look-alike Cyrillic/Greek letters mapped, repeated letters matched (`fuuuck`), and spaced-out letters joined (`f a g`).
+- List syntax: `word` matches anywhere, `=word` matches a whole word only (`=ass` blocks "ass" but not "grass"),
+  `raw:1488` matches digits as typed, `#` starts a comment. The allowlist removes innocent words before matching
+  (`assassin`, `Scunthorpe`, `raccoon`, `Nigeria`...).
+- To customise: **Tools > PhotonVR > Create Blocklist Asset** (`Resources/PhotonVRBlocklist`), then add your own
+  TextAssets, extra words or allowed words, or untick `IncludeDefaultLists`. From code:
+  `PhotonVRWordFilter.Default = new PhotonVRWordFilter(lines, allowLines);` or
+  `PhotonVRWordFilter.Default.CustomCheck = text => MyModerationApi.IsBad(text);`.
+- Events: `PhotonVRManager.UsernameRejected`, `PhotonVRManager.RoomCodeRejected`. With
+  `PhotonVRModeration.KickBlockedNames` the master kicks players that publish blocked names.
+
+No list catches everything; treat it as a first line and give players a report button.
+
+## Saving
+
+Name, colour, cosmetics and tints are always written to PlayerPrefs (same keys as PhotonVR). Add your own backend with
+`IPhotonVRSaveProvider`:
+```cs
+class MySave : IPhotonVRSaveProvider
+{
+    public string Name => "MyBackend";
+    public void Load(Action<PhotonVRSaveData> done) { /* fetch, then */ done(data); }   // done(null) = nothing saved
+    public void Save(PhotonVRSaveData data) { /* upload PhotonVRSaveJson.ToJson(data) */ }
+}
+PhotonVRSaveSystem.Register(new MySave());   // loads now; later answers win
+```
+Changes are debounced (`PhotonVRSaveSystem.SaveDelay`, 2 s) so several cosmetic changes become one call. Loaded names
+go through the word filter.
+
+## PlayFab (optional)
+
+1. Import the PlayFab Unity SDK and set your Title ID.
+2. **Tools > PhotonVR > PlayFab > Enable Integration** (adds `PHOTONVR_PLAYFAB`; the `PhotonVR.PlayFab` assembly only
+   compiles with that define, so projects without PlayFab are unaffected). If your SDK has no `PlayFab` assembly
+   definition, move the two scripts from `Runtime/Integrations/PlayFab` into your Assets folder instead.
+3. In the Photon dashboard, set your app's authentication to **Custom Server** with PlayFab's URL
+   (`https://<titleId>.playfabapi.com/photon/authenticate`) and turn off anonymous clients. In PlayFab, add your Photon
+   Realtime App ID under Add-ons > Photon.
+4. Add `PhotonVRPlayFabAuth` to a scene object and untick `ConnectOnAwake` on the manager. It logs in (device ID or your
+   custom ID), gets a Photon token, connects with `UserId = PlayFabId`, and registers `PhotonVRPlayFabSaveProvider`
+   (user data key `PhotonVRSave`). If you log in some other way, call `OnLoggedIn(result)` yourself.
+
+## Samples and tests
+- Package Manager > Photon VR Plus > Samples: **Lobby** and **Playground**. In the .unitypackage they are in
+  `Assets/PhotonVR/Samples`. Set your App IDs first.
+- Edit-mode tests in `Tests/Editor` run in the Test Runner (needs the Test Framework package).
 
 ## License
 MIT. Copyright (c) 2022 fchb1239 (original PhotonVR), plus Photon VR Plus contributors. See [LICENSE.md](LICENSE.md).

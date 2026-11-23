@@ -35,8 +35,17 @@ namespace Photon.VR
                 if (Settings.SerializationRate > 0) SerializationRate = Settings.SerializationRate;
             }
 
-            if (SendRate > 0) PhotonNetwork.SendRate = SendRate;
-            if (SerializationRate > 0) PhotonNetwork.SerializationRate = Mathf.Min(SerializationRate, PhotonNetwork.SendRate);
+            int send = SendRate, serialize = SerializationRate;
+            if (PlatformRates != null)
+                foreach (PhotonVRPlatformRates rates in PlatformRates)
+                    if (rates != null && rates.Platform == Application.platform)
+                    {
+                        if (rates.SendRate > 0) send = rates.SendRate;
+                        if (rates.SerializationRate > 0) serialize = rates.SerializationRate;
+                    }
+
+            if (send > 0) PhotonNetwork.SendRate = send;
+            if (serialize > 0) PhotonNetwork.SerializationRate = Mathf.Min(serialize, PhotonNetwork.SendRate);
         }
 
         /// <summary>True when an App ID is available (settings asset or manager) without decrypting it.</summary>
@@ -72,6 +81,9 @@ namespace Photon.VR
             authentication.AddAuthParameter("token", token);
             return ConnectInternal(authentication);
         }
+
+        /// <summary>Connects with fully custom AuthenticationValues (e.g. a PlayFab ticket with UserId set).</summary>
+        public static bool ConnectWithAuthentication(AuthenticationValues authentication) => ConnectInternal(authentication);
 
         /// <summary>Disconnects from the Photon servers (never triggers auto-reconnect).</summary>
         public void Disconnect()

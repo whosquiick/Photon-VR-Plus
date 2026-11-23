@@ -78,10 +78,35 @@ namespace Photon.VR
                 PhotonVRLog.Warn("JoinPrivateRoom called with an empty room code");
                 return;
             }
+            if (!PhotonVRWordFilter.Default.IsRoomCodeAllowed(RoomId))
+            {
+                PhotonVRLog.Warn("That room code is not allowed.");
+                RoomCodeRejected?.Invoke(RoomId);
+                return;
+            }
             if (!EnsureManager("JoinPrivateRoom")) return;
             PhotonVRManager m = Manager;
             m.SetRoomRequest(RoomRequestType.Private, RoomId, MaxPlayers);
             m.RunWhenOnMaster(m.DoJoinPrivate);
+        }
+
+        /// <summary>Joins an existing room by its code; fails (OnJoinRoomFailed) instead of creating it.</summary>
+        public static void JoinRoomByCode(string RoomId)
+        {
+            if (string.IsNullOrEmpty(RoomId) || !EnsureManager("JoinRoomByCode")) return;
+            if (!PhotonVRWordFilter.Default.IsRoomCodeAllowed(RoomId))
+            {
+                PhotonVRLog.Warn("That room code is not allowed.");
+                RoomCodeRejected?.Invoke(RoomId);
+                return;
+            }
+            PhotonVRManager m = Manager;
+            m.SetRoomRequest(RoomRequestType.Private, RoomId, m.DefaultRoomLimit);
+            m.RunWhenOnMaster(() =>
+            {
+                m.SetState(ConnectionState.JoiningRoom);
+                PhotonNetwork.JoinRoom(RoomId);
+            });
         }
 
         /// <summary>Leaves the current room and goes back to the master server (stays connected).</summary>
@@ -106,8 +131,19 @@ namespace Photon.VR
         /// <summary>Generates a random room code</summary>
         public string CreateRoomCode()
         {
-            return new System.Random().Next(99999).ToString();
+            // Same format as the original (a number below 99999), skipping codes the word filter rejects.
+            for (int i = 0; i < 20; i++)
+            {
+                string code = codeRandom.Next(99999).ToString();
+                if (PhotonVRWordFilter.Default.IsRoomCodeAllowed(code)) return code;
+            }
+            return codeRandom.Next(10000, 99999).ToString();
         }
+
+        private static readonly System.Random codeRandom = new System.Random();
+
+        /// <summary>Raised when a room code was refused by the word filter.</summary>
+        public static event Action<string> RoomCodeRejected;
 
         #endregion
 
@@ -144,7 +180,8 @@ namespace Photon.VR
                 IsOpen = true,
                 CustomRoomProperties = hastable,
                 CustomRoomPropertiesForLobby = new string[] { PhotonVRKeys.Queue, PhotonVRKeys.Version },
-                CleanupCacheOnLeave = true
+                CleanupCacheOnLeave = true,
+                PublishUserId = PublishUserIds
             };
             createRoomRetries = 0;
 
@@ -159,8 +196,10 @@ namespace Photon.VR
             {
                 IsVisible = false,
                 IsOpen = true,
+                CustomRoomProperties = new Hashtable { { PhotonVRKeys.PrivateRoom, true }, { PhotonVRKeys.Version, Application.version } },
                 MaxPlayers = (byte)lastRequestMaxPlayers,
-                CleanupCacheOnLeave = true
+                CleanupCacheOnLeave = true,
+                PublishUserId = PublishUserIds
             }, null, null);
             PhotonVRLog.Info($"Joining a private room: {lastRequestName}");
         }
@@ -265,7 +304,8 @@ namespace Photon.VR
         {
             // Applies colour / cosmetic changes for everyone without waiting for the legacy RPC.
             if (targetPlayer == null || changedProps == null) return;
-            if (!changedProps.ContainsKey(PhotonVRKeys.Colour) && !changedProps.ContainsKey(PhotonVRKeys.Cosmetics))
+            if (!changedProps.ContainsKey(PhotonVRKeys.Colour) && !changedProps.ContainsKey(PhotonVRKeys.Cosmetics) &&
+                !changedProps.ContainsKey(PhotonVRKeys.CosmeticTints))
                 return;
             foreach (PhotonVRPlayer p in PhotonVRPlayer.All)
                 if (p != null && p.Owner == targetPlayer)

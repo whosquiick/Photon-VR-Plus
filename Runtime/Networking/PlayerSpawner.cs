@@ -36,6 +36,8 @@ namespace Photon.VR.Player
         {
             if (playerTemp != null || !PhotonNetwork.InRoom)
                 return playerTemp;
+            if (PhotonVRMatchmaking.IsLocalSpectator)
+                return null; // spectators watch without an avatar
 
             if (Resources.Load<GameObject>(PrefabLocation) == null)
             {
