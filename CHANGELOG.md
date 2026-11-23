@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.2.0] - 2026-11-23
+PlayFab manager. Drop-in over 1.1.1; nothing new runs unless you add the component.
+
+### Added
+- `PhotonVRPlayFabManager` (PlayFab integration, needs `PHOTONVR_PLAYFAB`): one component for PlayFab.
+  - Title ID field stored encrypted with the same protection as the Photon App IDs, plus optional `HardenTitleId`
+    (session-keyed vault, like `HardenMemory`).
+  - Everything from `PhotonVRPlayFabAuth`: login, saves, `SyncDisplayName`, `LoadOwnedCosmetics`.
+  - Economy helpers: `RefreshInventory`, `GetCurrency`, `GetBalance`, `FormatBalance`, `OwnsItem`, `GetCatalogItem`,
+    `PurchaseItem`, `PurchaseCosmetic`, `ConsumeItem`, `SpendCurrency`, `GrantCurrency` (testing only; grant from the
+    server in real games), and the `InventoryChanged` event.
+- `PhotonVRPlayFabAuth.UsePhotonCustomAuth`: on by default, so existing setups are unchanged; off on the new manager.
+- `PhotonVRAppIdKind.PlayFabTitle`.
+
+### Changed
+- `PhotonVRPlayFabAuth` lifecycle methods are now `protected virtual`, so the manager can build on them.
+- `LoginSucceeded` fires right after the PlayFab login instead of after the Photon connect call.
+
 ## [1.1.1] - 2026-11-23
 Names, cosmetic ownership and PlayFab options. Drop-in over 1.1.0; new options are off by default.
 

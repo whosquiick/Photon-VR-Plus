@@ -25,6 +25,8 @@ namespace Photon.VR.PlayFab
         public string CustomId = "";
         [Tooltip("Load and save name / colour / cosmetics in PlayFab user data.")]
         public bool UsePlayFabSaves = true;
+        [Tooltip("After logging in, get a Photon token from PlayFab and connect with Photon custom auth (needs PlayFab set as the auth provider in the Photon dashboard). Off = PhotonVRManager connects on its own.")]
+        public bool UsePhotonCustomAuth = true;
         [Tooltip("Push every name change to the PlayFab title display name (UpdateUserTitleDisplayName). Works with your own login too: untick Login On Start.")]
         public bool SyncDisplayName = false;
         [Tooltip("Load the player's PlayFab inventory as their owned cosmetics (used when Require Owned Cosmetics is on in the manager).")]
@@ -40,19 +42,19 @@ namespace Photon.VR.PlayFab
 
         private PhotonVRPlayFabSaveProvider saveProvider;
 
-        private void OnEnable()
+        protected virtual void OnEnable()
         {
             if (SyncDisplayName) PhotonVRManager.UsernameChanged += PushDisplayName;
             if (LoadOwnedCosmetics) PhotonVRManager.ConnectedToMaster += LoadOwnedCosmeticsIfNeeded;
         }
 
-        private void OnDisable()
+        protected virtual void OnDisable()
         {
             PhotonVRManager.UsernameChanged -= PushDisplayName;
             PhotonVRManager.ConnectedToMaster -= LoadOwnedCosmeticsIfNeeded;
         }
 
-        private void Start()
+        protected virtual void Start()
         {
             if (!LoginOnStart) return;
             if (Mode == LoginMode.CustomId && !string.IsNullOrEmpty(CustomId)) LoginWithCustomId(CustomId);
@@ -63,6 +65,7 @@ namespace Photon.VR.PlayFab
 
         public void LoginWithCustomId(string id)
         {
+            ApplyTitleId();
             if (string.IsNullOrEmpty(PlayFabSettings.staticSettings.TitleId))
             {
                 Fail("PlayFab Title ID is not set (Window > PlayFab > Editor Extensions, or PlayFabSharedSettings).");
@@ -83,6 +86,8 @@ namespace Photon.VR.PlayFab
             }
 
             if (LoadOwnedCosmetics) RefreshOwnedCosmetics();
+            LoginSucceeded?.Invoke(PlayFabId);
+            if (!UsePhotonCustomAuth) return;
 
             string appId = PhotonVRManager.Manager != null ? PhotonVRManager.Manager.AppId : PhotonNetwork.PhotonServerSettings.AppSettings.AppIdRealtime;
             PlayFabClientAPI.GetPhotonAuthenticationToken(new GetPhotonAuthenticationTokenRequest { PhotonApplicationId = appId },
@@ -96,10 +101,12 @@ namespace Photon.VR.PlayFab
             auth.AddAuthParameter("username", PlayFabId);
             auth.AddAuthParameter("token", photonToken);
             PhotonVRManager.ConnectWithAuthentication(auth);
-            LoginSucceeded?.Invoke(PlayFabId);
         }
 
-        private void OnDestroy()
+        /// <summary>Gives the PlayFab SDK its Title ID before logging in. PhotonVRPlayFabManager uses its encrypted field.</summary>
+        protected virtual void ApplyTitleId() { }
+
+        protected virtual void OnDestroy()
         {
             if (saveProvider != null) Photon.VR.Saving.PhotonVRSaveSystem.Unregister(saveProvider);
         }
@@ -111,19 +118,19 @@ namespace Photon.VR.PlayFab
         }
 
         /// <summary>Reads the PlayFab inventory into PhotonVRManager.SetOwnedCosmetics. Call again after a purchase.</summary>
-        public void RefreshOwnedCosmetics()
+        public void RefreshOwnedCosmetics() =>
+            PhotonVRPlayFabManager.RefreshInventory(ReferenceEquals(this, PhotonVRPlayFabManager.Instance) ? null : (Action)ApplyOwnedCosmetics);
+
+        // Inventory item IDs (minus the prefix) become the owned cosmetics checked by RequireOwnedCosmetics.
+        internal void ApplyOwnedCosmetics()
         {
-            if (!PlayFabClientAPI.IsClientLoggedIn()) return;
-            PlayFabClientAPI.GetUserInventory(new GetUserInventoryRequest(), result =>
-            {
-                cosmeticsLoaded = true;
-                var ids = new List<string>();
-                if (result.Inventory != null)
-                    foreach (ItemInstance item in result.Inventory)
-                        if (item != null && item.ItemId != null && item.ItemId.StartsWith(CosmeticItemPrefix ?? "", StringComparison.Ordinal))
-                            ids.Add(item.ItemId.Substring((CosmeticItemPrefix ?? "").Length));
-                PhotonVRManager.SetOwnedCosmetics(ids);
-            }, e => PhotonVRLog.Warn("PlayFab inventory not loaded: " + e.ErrorMessage));
+            cosmeticsLoaded = true;
+            string prefix = CosmeticItemPrefix ?? "";
+            var ids = new List<string>();
+            foreach (string itemId in PhotonVRPlayFabManager.OwnedItemIds)
+                if (itemId.StartsWith(prefix, StringComparison.Ordinal))
+                    ids.Add(itemId.Substring(prefix.Length));
+            PhotonVRManager.SetOwnedCosmetics(ids);
         }
 
         private static string pushedName;

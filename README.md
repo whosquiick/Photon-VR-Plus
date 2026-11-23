@@ -14,6 +14,8 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - **New in 1.1.0:** master-client and ownership validation, blocked kicks and renames, a banned-word filter for names and
   room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, emotes, simple body IK, nameplates,
   room codes, spectators, a debug overlay, a cosmetic registry with tints, pluggable saving and an optional PlayFab adapter.
+- **New in 1.2.0:** `PhotonVRPlayFabManager`, one component for PlayFab: encrypted Title ID, login, currency balances,
+  catalog items, purchases and owned cosmetics.
 - **New in 1.1.1:** names and cosmetics never depend on the master client, your own scripts can set
   `PhotonNetwork.NickName` directly, optional owned-cosmetics check, and optional name sync to the PlayFab display name.
 - **Backwards compatible**: same class names, namespace (`Photon.VR`), public fields, methods, cosmetic names,
@@ -32,7 +34,7 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 Photon Voice 2 already contains PUN 2. If you import only Photon Voice 2, you get both.
 
 ## Install
-**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.1.1.unitypackage`.
+**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.2.0.unitypackage`.
 Everything goes into `Assets/PhotonVR`.
 
 **Option B – UPM:** unzip `PhotonVRPlus-1.0.1-UPM.zip`, then Window > Package Manager > **+** > *Add package from disk…* >
@@ -411,22 +413,61 @@ go through the word filter.
 
 ## PlayFab (optional)
 
-1. Import the PlayFab Unity SDK and set your Title ID.
-2. **Tools > PhotonVR > PlayFab > Enable Integration** (adds `PHOTONVR_PLAYFAB`; the `PhotonVR.PlayFab` assembly only
-   compiles with that define, so projects without PlayFab are unaffected). If your SDK has no `PlayFab` assembly
-   definition, move the two scripts from `Runtime/Integrations/PlayFab` into your Assets folder instead.
-3. In the Photon dashboard, set your app's authentication to **Custom Server** with PlayFab's URL
-   (`https://<titleId>.playfabapi.com/photon/authenticate`) and turn off anonymous clients. In PlayFab, add your Photon
-   Realtime App ID under Add-ons > Photon.
-4. Add `PhotonVRPlayFabAuth` to a scene object and untick `ConnectOnAwake` on the manager. It logs in (device ID or your
-   custom ID), gets a Photon token, connects with `UserId = PlayFabId`, and registers `PhotonVRPlayFabSaveProvider`
-   (user data key `PhotonVRSave`). If you log in some other way, call `OnLoggedIn(result)` yourself, or untick
-   `LoginOnStart` and just use the toggles below.
-5. Optional toggles on `PhotonVRPlayFabAuth` (off by default; they only do anything once PlayFab is logged in):
-   - `SyncDisplayName`: every accepted name change is also sent to `UpdateUserTitleDisplayName` (3-25 characters;
-     PlayFab may refuse names that are taken or that its own filter blocks; that is logged, the Photon name still changes).
-   - `LoadOwnedCosmetics` + `CosmeticItemPrefix`: reads `GetUserInventory` and passes the ItemIds to
-     `PhotonVRManager.SetOwnedCosmetics` when you log in or connect. Call `RefreshOwnedCosmetics()` after a purchase.
+Everything PlayFab lives on one component, **`PhotonVRPlayFabManager`**. `PhotonVRPlayFabAuth` still works as before;
+the manager is the same thing plus the Title ID field and economy helpers. Use one of them, not both.
+
+**Setup**
+1. Import the PlayFab Unity SDK, then **Tools > PhotonVR > PlayFab > Enable Integration** (adds `PHOTONVR_PLAYFAB`;
+   the PlayFab scripts only compile with it, so projects without PlayFab are unaffected). If your SDK has no `PlayFab`
+   assembly definition, move the scripts in `Runtime/Integrations/PlayFab` into your Assets folder instead.
+2. Add `PhotonVRPlayFabManager` to a scene object. Click **Set** on **Title Id** and paste your Title ID; it is stored
+   encrypted, the same way as the Photon App IDs. Leave the Title ID in `PlayFabSharedSettings` empty so it isn't also
+   stored in plain text. Tick **Harden Title Id** to also keep it in a session-keyed vault in memory.
+3. Login: keep **Login On Start** ticked. It uses the device ID, or **Custom Id** if you fill it in. If you log in with
+   your own scripts, untick it and call `OnLoggedIn(result)` yourself so the toggles below still work.
+4. Toggles (all off by default, except saving which was already on in `PhotonVRPlayFabAuth`):
+
+| Toggle | What it does |
+|---|---|
+| `UsePlayFabSaves` | Saves name / colour / cosmetics in PlayFab user data (`PhotonVRSave`). |
+| `UsePhotonCustomAuth` | After login, gets a Photon token and connects with Photon custom auth (`UserId = PlayFabId`). Untick `ConnectOnAwake` on the PhotonVR manager, and set Photon dashboard > Authentication > Custom Server `https://<titleId>.playfabapi.com/photon/authenticate` and your Photon App ID under PlayFab Add-ons > Photon. Off = `PhotonVRManager` connects on its own. (On by default on the older `PhotonVRPlayFabAuth`.) |
+| `SyncDisplayName` | Every accepted name change is also sent to `UpdateUserTitleDisplayName` (3-25 characters; PlayFab may refuse taken or filtered names, which is logged). |
+| `LoadOwnedCosmetics` | Your PlayFab inventory becomes the owned cosmetics for `RequireOwnedCosmetics` on the PhotonVR manager. |
+| `CosmeticItemPrefix` | Catalog ItemId = prefix + cosmetic ID. With `cosmetic_`, item `cosmetic_VRTopHat` owns cosmetic `VRTopHat`. Empty = same name. |
+| `CatalogVersion` | Catalog for items and purchases. Empty = primary catalog. |
+
+**Linking cosmetics to the catalog.** In PlayFab > Economy > Catalogs, add one item per cosmetic, with the ItemId set
+to the cosmetic's ID (the child object's name under the slot), with your prefix if you use one. Give it a price in your
+virtual currency. Then tick `RequireOwnedCosmetics` on the PhotonVR manager and `LoadOwnedCosmetics` on the PlayFab
+manager. Free items go in the manager's `OwnedCosmetics` list.
+
+**Economy helpers** (static, small on purpose; all use the PlayFab client API, Economy v1 catalogs):
+```cs
+PhotonVRPlayFabManager.RefreshInventory(() => Debug.Log("loaded"));    // inventory + balances
+int coins = PhotonVRPlayFabManager.GetBalance("GC");
+label.text = PhotonVRPlayFabManager.FormatBalance("GC");               // "1,250 GC"
+var all = PhotonVRPlayFabManager.GetCurrency();                        // code -> amount
+bool hasCrown = PhotonVRPlayFabManager.OwnsItem("cosmetic_VRCrown");
+PhotonVRPlayFabManager.GetCatalogItem("cosmetic_VRCrown", item => Debug.Log(item?.DisplayName));
+PhotonVRPlayFabManager.PurchaseCosmetic("VRCrown", "GC", 500, ok => { });   // PurchaseItem + owned cosmetic
+PhotonVRPlayFabManager.PurchaseItem("speed_boost", "GC", 100, ok => { });
+PhotonVRPlayFabManager.ConsumeItem("speed_boost", 1, ok => { });
+PhotonVRPlayFabManager.InventoryChanged += RefreshShopUi;
+```
+`SpendCurrency` / `GrantCurrency` call `SubtractUserVirtualCurrency` / `AddUserVirtualCurrency`. PlayFab blocks both
+from clients unless you enable them in the title's API policy. **Keep client grants off in a real game**: any player
+could call them. Give currency from the server (CloudScript / Azure Functions / Server API, e.g. for daily rewards or
+round wins). Purchases are safe from the client because PlayFab checks the price and balance itself.
+
+**What is and isn't secret**
+- The Title ID is **not a secret**. It is in every request your game sends to PlayFab, and the SDK keeps it in plain text
+  in memory once you log in. Encrypting it in your build stops casual extraction from the files; it doesn't stop a
+  determined person. Lock your title down in PlayFab instead: turn off client grants, and use
+  API policies and server-side validation.
+- **Never put your PlayFab secret key in the game.** It belongs only on a server or in CloudScript. Nothing in this
+  package asks for it.
+- Owned cosmetics are checked on the player's own client (see [Security](#security)). Purchases and inventory are real
+  PlayFab data, but whether another player shows a cosmetic is still up to their client.
 
 ## Samples and tests
 - Package Manager > Photon VR Plus > Samples: **Lobby** and **Playground**. In the .unitypackage they are in

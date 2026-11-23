@@ -164,3 +164,12 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
   `RefreshOwnedCosmetics` and `PushDisplayName`.
 - Behaviour change: changes to your own name / colour / cosmetics made outside PhotonVR are now kept (as in 1.0.x)
   instead of being reverted (1.1.0).
+
+## 1.2.0 notes
+- Nothing renamed or removed; no new Photon keys, events or RPCs.
+- Additions:
+  - `PhotonVRAppIdKind.PlayFabTitle` (added at the end, existing values unchanged);
+  - `PhotonVRPlayFabManager` (new script, PlayFab assembly only);
+  - `PhotonVRPlayFabAuth.UsePhotonCustomAuth` (defaults to true = old behaviour).
+- `PhotonVRPlayFabAuth`'s `OnEnable` / `OnDisable` / `Start` / `OnDestroy` went from private to `protected virtual`.
+- `LoginSucceeded` is raised right after the PlayFab login, before the Photon connect call.

@@ -6,11 +6,12 @@ namespace Photon.VR
     public enum PhotonVRAppIdKind
     {
         Realtime,
-        Voice
+        Voice,
+        PlayFabTitle
     }
 
     /// <summary>
-    /// In-memory store for the App IDs when memory hardening is on. Each ID is AES encrypted with a random
+    /// In-memory store for the App IDs (and the PlayFab Title ID) when memory hardening is on. Each ID is AES encrypted with a random
     /// key generated for this session and MAC'd so tampering is noticed. Plaintext only exists while
     /// <see cref="Reveal"/>'s caller hands it to Photon.
     /// </summary>
@@ -18,8 +19,8 @@ namespace Photon.VR
     {
         private readonly byte[] sessionKey = PhotonVRIdProtector.RandomBytes(32);
         private readonly byte[] macKey = PhotonVRIdProtector.RandomBytes(32);
-        private readonly byte[][] blobs = new byte[2][];
-        private readonly byte[][] macs = new byte[2][];
+        private readonly byte[][] blobs = new byte[3][];
+        private readonly byte[][] macs = new byte[3][];
 
         public bool TamperDetected { get; private set; }
 
