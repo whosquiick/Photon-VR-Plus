@@ -13,11 +13,13 @@ using Photon.VR.Saving;
 namespace Photon.VR
 {
     /// <summary>
-    /// The central PhotonVR component. Put exactly one in your first scene (or drop in the
-    /// <c>PhotonVRManager</c> prefab); it survives scene loads. It handles connecting with your
-    /// App ID / Voice App ID / region, queue-based and private matchmaking, auto-reconnect, and the local
-    /// player's name, colour and cosmetics.
+    /// The main PhotonVR component. Put one in your first scene (or drop in the <c>PhotonVRManager</c> prefab) and
+    /// it stays across scene loads. It connects with your App ID / Voice App ID / region, finds rooms, reconnects,
+    /// and keeps track of the local player's name, colour and cosmetics.
+    /// For quick scripting, <see cref="PhotonVR"/> has the common calls in one place.
     /// </summary>
+    // Made by Quick (discord.gg/uglymonke). Use it and edit it however you like; the API follows the original
+    // PhotonVR so old scripts keep working.
     // Split into partials: Networking/*.Connection, *.Rooms, *.Security and Cosmetics/*.PlayerValues.
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-100)]
@@ -122,9 +124,9 @@ namespace Photon.VR
 
         [Header("Other")]
         // This should always be true
-        [Tooltip("If the user shall connect when this object has awoken")]
+        [Tooltip("Connect as soon as the game starts.")]
         public bool ConnectOnAwake = true;
-        [Tooltip("If the user shall join a room when they connect")]
+        [Tooltip("Join a room in the default queue once connected.")]
         public bool JoinRoomOnConnect = true;
         [Tooltip("Log connection progress to the console.")]
         public bool VerboseLogging = true;
@@ -315,6 +317,16 @@ namespace Photon.VR
 
         /// <summary>True while inside a room.</summary>
         public static bool IsInRoom => PhotonNetwork.InRoom;
+
+        /// <summary>True when connected to Photon and ready (on the master server or in a room).</summary>
+        public static bool IsConnected => PhotonNetwork.IsConnectedAndReady;
+
+        /// <summary>True when the local player is the master client.</summary>
+        public static bool IsMasterClient => PhotonNetwork.InRoom && PhotonNetwork.IsMasterClient;
+
+        /// <summary>Everyone in the current room, you included (empty when not in a room).</summary>
+        public static Photon.Realtime.Player[] GetPlayersInRoom() =>
+            PhotonNetwork.InRoom ? PhotonNetwork.PlayerList : Array.Empty<Photon.Realtime.Player>();
 
         /// <summary>Players in the current room (0 when not in a room).</summary>
         public static int PlayerCount => PhotonNetwork.InRoom ? PhotonNetwork.CurrentRoom.PlayerCount : 0;

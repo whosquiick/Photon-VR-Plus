@@ -179,3 +179,9 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
 - `LoginSucceeded` is raised right after the PlayFab login, before the Photon connect call.
 - If your project still has its own `Playfablogin` class, it takes priority over the package one in your scripts
   (CS0436 warning). Delete yours to switch.
+
+## 1.2.1 notes
+- Additions only: the `Photon.VR.PhotonVR` static class, `PhotonVRManager.IsConnected` / `IsMasterClient` /
+  `GetPlayersInRoom()`, `PhotonVRPlayFabManager.IsLoggedIn` / `BuyItem` / `RefreshAll`.
+- If your project already has its own class called `PhotonVR` in the global namespace, it takes priority in your
+  scripts. Use `Photon.VR.PhotonVR` to reach this one.

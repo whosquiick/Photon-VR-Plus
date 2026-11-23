@@ -115,7 +115,7 @@ namespace Photon.VR
             ownWrites.Clear();
         }
 
-        // ---- Our own name / colour / cosmetics ----
+        // Our own name / colour / cosmetics
         // Each player owns these keys on their own actor; nothing here involves the master client. Photon stamps who
         // wrote a property change on the event, so we can tell our own changes (made by PhotonVR or by your scripts
         // setting PhotonNetwork.NickName) from someone else writing to us. Runs only when a change arrives.

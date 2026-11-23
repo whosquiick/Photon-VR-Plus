@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.1] - 2026-11-23
+Small additions for building on the package. Nothing changes unless you use them.
+
+### Added
+- `PhotonVR` static class: connect, join/leave rooms, name, colour, cosmetics, players, mic/player mute and kick, plus
+  the common events (Connected, JoinedRoom, LeftRoom, Disconnected, PlayerJoined, PlayerLeft, MasterChanged,
+  NameChanged, CosmeticRejected, LocalPlayerSpawned). It only forwards to the existing calls.
+- `PhotonVRManager.IsConnected`, `IsMasterClient`, `GetPlayersInRoom()`.
+- `PhotonVRPlayFabManager.IsLoggedIn`, `BuyItem`, `RefreshAll`.
+- A credit note at the top of the PhotonVRManager inspector.
+
+### Changed
+- Plainer tooltips and comments in a few places. No behaviour changes.
+
 ## [1.2.0] - 2026-11-23
 PlayFab manager. Drop-in over 1.1.1; nothing new runs unless you add the component.
 

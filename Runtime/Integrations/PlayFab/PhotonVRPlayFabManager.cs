@@ -200,7 +200,17 @@ namespace Photon.VR.PlayFab
             ShowName(PhotonNetwork.NickName);
         }
 
-        // ---- Player data ----
+        /// <summary>True once logged in to PlayFab.</summary>
+        public static bool IsLoggedIn => LoggedIn;
+
+        /// <summary>Reloads items, coins and the MOTD (e.g. after a server-side grant).</summary>
+        public void RefreshAll()
+        {
+            RefreshInventory();
+            if (MOTDText != null && LoggedIn) LoadMotd();
+        }
+
+        // Player data
 
         /// <summary>
         /// Changes the name: word filter first, then the Photon name and the PlayFab display name.
@@ -228,7 +238,7 @@ namespace Photon.VR.PlayFab
             }, e => ReportError("MOTD not loaded", e));
         }
 
-        // ---- Inventory and items ----
+        // Inventory and items
 
         /// <summary>Item IDs the player owns (from the last <see cref="RefreshInventory"/>).</summary>
         public static IEnumerable<string> OwnedItemIds
@@ -329,6 +339,9 @@ namespace Photon.VR.PlayFab
                 });
         }
 
+        /// <summary>Same as <see cref="PurchaseItem(string, int, Action{bool})"/>: buys with the manager's Currency Code.</summary>
+        public static void BuyItem(string itemId, int price, Action<bool> done = null) => PurchaseItem(itemId, price, done);
+
         /// <summary>Buys a catalog item with the manager's Currency Code.</summary>
         public static void PurchaseItem(string itemId, int price, Action<bool> done = null) =>
             PurchaseItem(itemId, Instance != null ? Instance.CurrencyCode : "", price, done);
@@ -369,7 +382,7 @@ namespace Photon.VR.PlayFab
         private static string CatalogOrNull() =>
             Instance != null && !string.IsNullOrEmpty(Instance.CatalogName) ? Instance.CatalogName : null;
 
-        // ---- Currency ----
+        // Currency
         // There is deliberately no "add coins" call: anything the client can call, a cheater can call too.
         // Give currency from the server (CloudScript / Azure Functions / Server API) and call RefreshInventory after.
 
@@ -383,7 +396,7 @@ namespace Photon.VR.PlayFab
         /// <summary>"1,250 GC" style text for UI.</summary>
         public static string FormatBalance(string currencyCode) => GetBalance(currencyCode).ToString("N0") + " " + currencyCode;
 
-        // ---- Errors and bans ----
+        // Errors and bans
 
         private static void ReportError(string what, PlayFabError e)
         {

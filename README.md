@@ -14,6 +14,8 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - **New in 1.1.0:** master-client and ownership validation, blocked kicks and renames, a banned-word filter for names and
   room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, emotes, simple body IK, nameplates,
   room codes, spectators, a debug overlay, a cosmetic registry with tints, pluggable saving and an optional PlayFab adapter.
+- **New in 1.2.1:** a `PhotonVR` static class with the common calls and events in one place (see
+  [Building on the API](#building-on-the-api)), plus a few small helpers.
 - **New in 1.2.0:** `PhotonVRPlayFabManager`, a PlayFab manager laid out like the gorilla-tag `Playfablogin` script:
   encrypted Title ID, special items, currency, bans, MOTD, display name and purchases, plus a drop-in `Playfablogin` class.
 - **New in 1.1.1:** names and cosmetics never depend on the master client, your own scripts can set
@@ -34,7 +36,7 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 Photon Voice 2 already contains PUN 2. If you import only Photon Voice 2, you get both.
 
 ## Install
-**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.2.0.unitypackage`.
+**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.2.1.unitypackage`.
 Everything goes into `Assets/PhotonVR`.
 
 **Option B – UPM:** unzip `PhotonVRPlus-1.0.1-UPM.zip`, then Window > Package Manager > **+** > *Add package from disk…* >
@@ -138,6 +140,37 @@ PhotonVRVoice.SetMuted(true);   // or PhotonVRVoice.ToggleMute()
 foreach (var player in Photon.VR.Player.PhotonVRPlayer.All)
     Debug.Log($"{player.Owner.NickName} speaking: {player.IsSpeaking}, hat: {player.GetEquipped("Head")}");
 ```
+
+## Building on the API
+`PhotonVR` (namespace `Photon.VR`) has the calls you use most in one place, so you don't have to find components.
+It only forwards to `PhotonVRManager` and friends, so the word filter, owned-cosmetics check and master-only
+kicks still apply. The original `PhotonVRManager.*` calls work the same as before.
+
+```cs
+using Photon.VR;
+
+PhotonVR.JoinRoom("Forest");                     // random room in a queue, made if none has space
+PhotonVR.JoinPrivateRoom("MONKE");               // join or make a private room
+string code = PhotonVR.CreatePrivateRoom(10);    // random code, e.g. "K7MQ2X"
+PhotonVR.LeaveRoom();
+
+if (!PhotonVR.SetName(input)) Debug.Log("Name not allowed");
+PhotonVR.SetColour(Color.red);
+PhotonVR.EquipCosmetic("Head", "VRTopHat");      // refused if Require Owned Cosmetics is on and you don't own it
+PhotonVR.UnequipCosmetic("Head");
+
+foreach (var p in PhotonVR.Players) Debug.Log(p.NickName);
+PhotonVR.MutePlayer(player);                     // mutes them for you only
+PhotonVR.SetMicMuted(true);
+if (PhotonVR.IsMasterClient) PhotonVR.Kick(player, "Being mean");
+
+PhotonVR.JoinedRoom += room => Debug.Log("In " + room.Name);
+PhotonVR.PlayerJoined += p => Debug.Log(p.NickName + " joined");
+PhotonVR.CosmeticRejected += (slot, id) => Debug.Log("You don't own " + id);
+```
+
+Also new on `PhotonVRManager`: `IsConnected`, `IsMasterClient` and `GetPlayersInRoom()`. With PlayFab:
+`PhotonVRPlayFabManager.IsLoggedIn`, `BuyItem(itemId, price)` and `RefreshAll()` (items, coins and MOTD).
 
 ## Cosmetics
 Every body part on the player prefab has a `…Cosmetics` child. That child is the slot container:
@@ -479,7 +512,7 @@ bool owns = PhotonVRPlayFabManager.OwnsItem("GoldCrown");
 int coins = pf.Coins;                                                 // or GetBalance("HS"), FormatBalance("HS")
 PhotonVRPlayFabManager.RefreshInventory();                            // after a server-side grant
 PhotonVRPlayFabManager.InventoryChanged += RefreshShop;
-PhotonVRPlayFabManager.Banned += reason => { };
+PhotonVRPlayFabManager.Banned += (reason, hoursLeft) => { };     // hoursLeft = -1 means indefinitely
 ```
 
 **Coming from a `Playfablogin` script.** There is a `Playfablogin` component, a `PhotonVRPlayFabManager` with

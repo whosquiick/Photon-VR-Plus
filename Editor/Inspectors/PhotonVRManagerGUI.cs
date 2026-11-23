@@ -17,12 +17,19 @@ namespace Photon.VR
     {
         private Texture2D logo;
 
+        private const string Credit =
+            "This package was made by Quick. You can find me at discord.gg/uglymonke.\n" +
+            "You're welcome to make stuff with it and edit it however you'd like. I tried to keep the API similar to " +
+            "the original PhotonVR so it stays cross-compatible.";
+
         public override void OnInspectorGUI()
         {
             if (logo == null)
                 logo = Resources.Load<Texture2D>("PhotonVR/Assets/PhotonVRWide");
             if (logo != null)
                 GUILayout.Label(new GUIContent { image = logo }, GUILayout.MaxHeight(80));
+
+            EditorGUILayout.HelpBox(Credit, MessageType.None);
 
             var manager = (PhotonVRManager)target;
 
