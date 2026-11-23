@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2] - 2026-11-23
+Removed emotes and the edit-mode tests, as requested.
+
+### Removed
+- `PhotonVREmotes` (its `Emote` list, `PlayLocal`, `Play`, the `EmotePlayed` event and its RPC). It wasn't on any
+  prefab or sample. If a scene still has it, the component shows as a missing script; just remove it.
+- `Tests/` (edit-mode tests and their assembly definition). The Lobby and Playground samples stay.
+
 ## [1.2.1] - 2026-11-23
 Small additions for building on the package. Nothing changes unless you use them.
 

@@ -12,8 +12,9 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - App IDs stored **encrypted**, with optional in-memory hardening (see [Protecting your App IDs](#protecting-your-app-ids)).
 - Auto-reconnect, room helpers, events, null-safe code and an editor menu that sets up everything for you.
 - **New in 1.1.0:** master-client and ownership validation, blocked kicks and renames, a banned-word filter for names and
-  room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, emotes, simple body IK, nameplates,
+  room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, simple body IK, nameplates,
   room codes, spectators, a debug overlay, a cosmetic registry with tints, pluggable saving and an optional PlayFab adapter.
+- **1.2.2:** emotes and the edit-mode tests were removed.
 - **New in 1.2.1:** a `PhotonVR` static class with the common calls and events in one place (see
   [Building on the API](#building-on-the-api)), plus a few small helpers.
 - **New in 1.2.0:** `PhotonVRPlayFabManager`, a PlayFab manager laid out like the gorilla-tag `Playfablogin` script:
@@ -36,7 +37,7 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 Photon Voice 2 already contains PUN 2. If you import only Photon Voice 2, you get both.
 
 ## Install
-**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.2.1.unitypackage`.
+**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.2.2.unitypackage`.
 Everything goes into `Assets/PhotonVR`.
 
 **Option B – UPM:** unzip `PhotonVRPlus-1.0.1-UPM.zip`, then Window > Package Manager > **+** > *Add package from disk…* >
@@ -95,7 +96,6 @@ Runtime/
     Prefabs/Testing/*                  colour / cosmetic test triggers
     Filter/DefaultBlocklist.txt, DefaultAllowlist.txt   banned-word data
 Samples~/      Lobby and Playground scenes (Package Manager > Samples; Assets/PhotonVR/Samples in the .unitypackage)
-Tests/Editor/  edit-mode tests (word filter, room codes, rate limiter, ID protection)
 Editor/
   Inspectors/  manager inspector, encrypted-ID drawer, testing inspectors
   Tools/       Setup Scene, Set App IDs window, prefab builders, build check
@@ -312,8 +312,7 @@ Create **Tools > PhotonVR > Create Cosmetic Registry** (saved as `Resources/Phot
 is not already under the slot, it is spawned there. Tints: `PhotonVRManager.SetCosmeticTint("Head", Color.red)`; set
 `TintRenderers` on a `PhotonVRCosmetic` to choose which renderers / material slots take the colour.
 
-### Emotes, body IK, nameplates
-- `PhotonVREmotes` on the player prefab: a list of emotes (visual, sound, animator trigger). `PhotonVREmotes.PlayLocal("wave")`.
+### Body IK, nameplates
 - `PhotonVRBodyIK`: optional two-bone arm IK and torso-follows-head for avatars with arms. Runs from the synced transforms.
 - `PhotonVRNameplate`: billboarded name, speaking icon and muted icon. Shows the filtered, verified name.
 
@@ -538,10 +537,9 @@ PlayFab's default). Purchases are fine from the client because PlayFab checks th
   PlayFab refuses a banned account's requests (and Photon too, with Use Photon Custom Auth on).
 - Owned cosmetics are checked on each player's own client (see [Security](#security)).
 
-## Samples and tests
+## Samples
 - Package Manager > Photon VR Plus > Samples: **Lobby** and **Playground**. In the .unitypackage they are in
   `Assets/PhotonVR/Samples`. Set your App IDs first.
-- Edit-mode tests in `Tests/Editor` run in the Test Runner (needs the Test Framework package).
 
 ## License
 MIT. Copyright (c) 2022 fchb1239 (original PhotonVR), plus Photon VR Plus contributors. See [LICENSE.md](LICENSE.md).

@@ -185,3 +185,10 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
   `GetPlayersInRoom()`, `PhotonVRPlayFabManager.IsLoggedIn` / `BuyItem` / `RefreshAll`.
 - If your project already has its own class called `PhotonVR` in the global namespace, it takes priority in your
   scripts. Use `Photon.VR.PhotonVR` to reach this one.
+
+## 1.2.2 notes
+- Removed on request: `Photon.VR.Player.PhotonVREmotes` (with `Emote`, `PlayLocal`, `Play`, `EmotePlayed` and
+  the `RPC_PhotonVREmote` RPC). Scripts that call them need those lines removed. It was added in 1.1.0 and was never
+  part of the original PhotonVR, so original PhotonVR scripts are unaffected.
+- Removed the `Tests/` folder (the `PhotonVR.Tests.Editor` assembly). Nothing at runtime used it.
+- Everything else is unchanged.
