@@ -155,3 +155,12 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
   - Event codes 180 (profile), 181 (master handoff), 182 (kick) are reserved by Photon VR Plus.
 - New PlayerPrefs keys: `CosmeticTints`, `PhotonVRMuted` (and `PhotonVRSave` if you register `PhotonVRPlayerPrefsSaveProvider`).
 - `PhotonNetwork.EnableCloseConnection` is forced off; use `PhotonVRModeration.Kick`.
+
+## 1.1.1 notes
+- Nothing renamed or removed; no new Photon keys, events or RPCs.
+- Only additions: `UsernameChanged`, `CosmeticRejected`, `OwnsCosmetic`, `SetOwnedCosmetics`, `GrantCosmetic`
+  (static, on `PhotonVRManager`); the manager fields `ResyncOnMasterSwitch`, `RequireOwnedCosmetics` and
+  `OwnedCosmetics`; and the `PhotonVRPlayFabAuth` members `LoadOwnedCosmetics`, `CosmeticItemPrefix`,
+  `RefreshOwnedCosmetics` and `PushDisplayName`.
+- Behaviour change: changes to your own name / colour / cosmetics made outside PhotonVR are now kept (as in 1.0.x)
+  instead of being reverted (1.1.0).

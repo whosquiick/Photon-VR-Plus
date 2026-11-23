@@ -33,8 +33,6 @@ namespace Photon.VR
         private const int MaxValueLength = 64;
 
         private static readonly Dictionary<int, PhotonVRProfile> profiles = new Dictionary<int, PhotonVRProfile>();
-        private static readonly PhotonVRRateLimiter restoreLimit = new PhotonVRRateLimiter(1f, 3f);
-        private static float lastPublish;
 
         public static bool TryGet(int actor, out PhotonVRProfile profile) => profiles.TryGetValue(actor, out profile);
 
@@ -55,16 +53,17 @@ namespace Photon.VR
             {
                 PhotonNetwork.LocalPlayer.NickName ?? "",
                 JsonUtility.ToJson(m.Colour),
-                new Dictionary<string, string>(m.Cosmetics),
+                m.OwnedOnly(m.Cosmetics),
                 new Dictionary<string, string>(m.CosmeticTints)
             };
-            // Only one cached profile per player: remove the old one first.
+            // Only one cached profile per player: remove our old one first. TargetActors limits the removal to our
+            // own events (without it Photon removes every player's cached profile).
             PhotonNetwork.RaiseEvent(PhotonVRSecurity.ProfileEvent, null,
-                new RaiseEventOptions { CachingOption = EventCaching.RemoveFromRoomCache }, SendOptions.SendReliable);
+                new RaiseEventOptions { CachingOption = EventCaching.RemoveFromRoomCache, TargetActors = new[] { PhotonNetwork.LocalPlayer.ActorNumber } },
+                SendOptions.SendReliable);
             PhotonNetwork.RaiseEvent(PhotonVRSecurity.ProfileEvent, payload,
                 new RaiseEventOptions { CachingOption = EventCaching.AddToRoomCache, Receivers = ReceiverGroup.Others }, SendOptions.SendReliable);
             Store(PhotonNetwork.LocalPlayer, payload);
-            lastPublish = Time.realtimeSinceStartup;
         }
 
         internal static void HandleEvent(EventData e)
@@ -109,28 +108,68 @@ namespace Photon.VR
         }
 
         internal static void Remove(int actor) => profiles.Remove(actor);
-        internal static void Clear() => profiles.Clear();
 
-        // Someone changed our properties or NickName: put ours back. We cannot tell who did it.
-        internal static void OnPlayerPropertiesUpdate(Photon.Realtime.Player target, Hashtable changed)
+        internal static void Clear()
         {
-            if (target == null || !target.IsLocal || PhotonVRManager.Manager == null) return;
-            if (!TryGet(target.ActorNumber, out PhotonVRProfile mine)) return;
-            // Echoes of our own recent changes can arrive out of order.
-            if (Time.realtimeSinceStartup - lastPublish < 1.5f) return;
+            profiles.Clear();
+            ownWrites.Clear();
+        }
 
-            bool tampered = false;
-            if (changed.TryGetValue(PhotonVRKeys.Colour, out object c) && c as string != JsonUtility.ToJson(PhotonVRManager.Manager.Colour))
-                tampered = true;
-            if (changed.TryGetValue(PhotonVRKeys.Cosmetics, out object cos) && !SameDictionary(PhotonVRCosmeticUtility.ToStringDictionary(cos), PhotonVRManager.Manager.Cosmetics))
-                tampered = true;
-            if (changed.TryGetValue(ActorProperties.PlayerName, out object n) && n as string != mine.Name)
-                tampered = true;
+        // ---- Our own name / colour / cosmetics ----
+        // Each player owns these keys on their own actor; nothing here involves the master client. Photon stamps who
+        // wrote a property change on the event, so we can tell our own changes (made by PhotonVR or by your scripts
+        // setting PhotonNetwork.NickName) from someone else writing to us. Runs only when a change arrives.
 
-            if (!tampered || !restoreLimit.TryConsume()) return;
-            PhotonVRSecurity.Report(null, PhotonVRViolationType.PropertyTamper, "another client changed our name / colour / cosmetics; restoring");
-            PhotonNetwork.LocalPlayer.NickName = mine.Name;
-            PhotonVRManager.Manager.RepublishLocalProperties();
+        private const float EchoWindow = 2f;
+        private static readonly object[] OwnKeys =
+        {
+            ActorProperties.PlayerName, PhotonVRKeys.Colour, PhotonVRKeys.Cosmetics, PhotonVRKeys.CosmeticTints
+        };
+        private static readonly Dictionary<object, float> ownWrites = new Dictionary<object, float>();
+        private static readonly PhotonVRRateLimiter restoreLimit = new PhotonVRRateLimiter(1f, 3f);
+
+        // PhotonVR is about to write this key itself; its echo is not an outside change.
+        internal static void NoteOwnWrite(object key) => ownWrites[key] = Time.realtimeSinceStartup;
+
+        internal static void HandlePropertiesChanged(EventData e)
+        {
+            PhotonVRManager m = PhotonVRManager.Manager;
+            if (m == null || !PhotonNetwork.InRoom || !(e[ParameterCode.TargetActorNr] is int target)) return;
+            if (target != PhotonNetwork.LocalPlayer.ActorNumber || !(e[ParameterCode.Properties] is Hashtable changed)) return;
+
+            bool ours = false, echo = true;
+            float now = Time.realtimeSinceStartup;
+            foreach (object key in OwnKeys)
+            {
+                if (!changed.ContainsKey(key)) continue;
+                ours = true;
+                if (!ownWrites.TryGetValue(key, out float t) || now - t > EchoWindow) echo = false;
+            }
+            int writer = e.Sender; // 0 when Photon did not say who wrote it: leave it alone
+            if (!ours || writer <= 0) return;
+
+            if (writer == target)
+            {
+                // Our own client, not through PhotonVR (e.g. a name computer script): keep it, filtered.
+                if (!echo) m.AdoptLocalChange(changed);
+                return;
+            }
+
+            PhotonVRSecurity.Report(PhotonNetwork.CurrentRoom.GetPlayer(writer), PhotonVRViolationType.PropertyTamper,
+                "changed our name / colour / cosmetics; restoring");
+            if (!restoreLimit.TryConsume()) return;
+            if (changed.ContainsKey(ActorProperties.PlayerName))
+            {
+                NoteOwnWrite(ActorProperties.PlayerName);
+                PhotonNetwork.LocalPlayer.NickName = PhotonVRManager.AcceptedName;
+            }
+            m.RepublishLocalProperties();
+        }
+
+        internal static void OnMasterClientSwitched()
+        {
+            PhotonVRManager m = PhotonVRManager.Manager;
+            if (m != null && m.ResyncOnMasterSwitch) m.ResyncLocalProperties();
         }
 
         private static string Clip(string s, int max) => s == null ? "" : s.Length > max ? s.Substring(0, max) : s;
@@ -144,14 +183,6 @@ namespace Photon.VR
                 result[Clip(kv.Key, MaxValueLength)] = Clip(kv.Value, MaxValueLength);
             }
             return result;
-        }
-
-        private static bool SameDictionary(Dictionary<string, string> a, Dictionary<string, string> b)
-        {
-            if (a.Count != b.Count) return false;
-            foreach (var kv in a)
-                if (!b.TryGetValue(kv.Key, out string v) || v != kv.Value) return false;
-            return true;
         }
     }
 }

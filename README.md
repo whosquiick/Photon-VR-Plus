@@ -14,6 +14,8 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - **New in 1.1.0:** master-client and ownership validation, blocked kicks and renames, a banned-word filter for names and
   room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, emotes, simple body IK, nameplates,
   room codes, spectators, a debug overlay, a cosmetic registry with tints, pluggable saving and an optional PlayFab adapter.
+- **New in 1.1.1:** names and cosmetics never depend on the master client, your own scripts can set
+  `PhotonNetwork.NickName` directly, optional owned-cosmetics check, and optional name sync to the PlayFab display name.
 - **Backwards compatible**: same class names, namespace (`Photon.VR`), public fields, methods, cosmetic names,
   Photon property keys and even script GUIDs. Existing scripts that use PhotonVR compile and work unchanged.
   See [`API_COMPAT.md`](API_COMPAT.md).
@@ -30,7 +32,7 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 Photon Voice 2 already contains PUN 2. If you import only Photon Voice 2, you get both.
 
 ## Install
-**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.1.0.unitypackage`.
+**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.1.1.unitypackage`.
 Everything goes into `Assets/PhotonVR`.
 
 **Option B – UPM:** unzip `PhotonVRPlus-1.0.1-UPM.zip`, then Window > Package Manager > **+** > *Add package from disk…* >
@@ -302,11 +304,12 @@ it. It cannot stop a modded client from sending things.
 
 Call `PhotonVRSecurity.Initialize()` yourself only if you don't use `PhotonVRManager` (the manager does it in `Awake`).
 
-| Threat | What 1.1.0 does |
+| Threat | What Photon VR Plus does |
 |---|---|
 | Making yourself master (`SetMasterClient`) | Every client tracks the *legitimate* master. A switch is accepted only when the old master left, or the legitimate master announced a handoff, or your `PhotonVRAuthority` approves it. Otherwise it is logged as a violation, the previous master takes the role back and kicks the hijacker. `FromMaster` RPC checks and kicks only trust the legitimate master. |
 | Kicking / disconnecting others | PUN's `CloseConnection` is disabled (`EnableCloseConnection = false`). Kicks go through `PhotonVRModeration.Kick`, which only the legitimate master can send and every client checks (sender is stamped by the Photon server) and `PhotonVRAuthority.ValidateKick` can veto. Bad attempts are reported. |
-| Renaming others / changing their cosmetics | Names, colours and cosmetics are read from a profile event the **server stamps with the real sender**, so a player can only set their own. If someone overwrites your properties, your client notices and restores them, and reports the writer as `PropertyTamper`. |
+| Renaming others / changing their cosmetics | Every player sets their own name (`NickName`) and cosmetics on their own Photon actor; the master client is never involved, so it keeps working when the master leaves. Other players read them from a profile event the **server stamps with the real sender**. Photon also stamps who wrote a property change; if someone else writes to yours, your client puts them back and reports the writer as `PropertyTamper`. |
+| Wearing cosmetics you don't own | Optional (`RequireOwnedCosmetics`): unowned cosmetics can't be equipped and are never sent. See [Names and cosmetic ownership](#names-and-cosmetic-ownership). |
 | Joining as someone else | Rooms publish UserIds; the master rejects duplicate UserIds, banned UserIds and anything your `PhotonVRAuthority.ValidateIdentity` rejects. With PlayFab custom auth, the UserId is the verified PlayFabId. |
 | Moving objects you don't own | Pose sync and grabbables ignore serialized data not sent by the owner; `PhotonVRRpc.FromOwner` does the same for RPCs. Ownership requests are rate limited and PUN only accepts transfers from the current owner. |
 | Spam | Per-sender token buckets on profile updates, RPCs, pose packets and grab requests. |
@@ -330,13 +333,44 @@ PhotonVRModeration.Ban(player, "cheating");                // session ban by Use
 **What this cannot do (honest limits):**
 - A cheater's own game can do anything it likes locally, and can still write room/player properties and send events.
   Honest clients ignore or undo those, but the messages still reach the server.
-- Photon does not tell you who wrote a player property, only that it changed. That is why the profile uses events.
+- Restoring your properties relies on Photon including the writer's actor number in property-change events, which
+  Photon Cloud does. If a change arrives without one (e.g. written by a server plugin), it is left alone.
+- The owned-cosmetics check runs on the player's own client. It stops honest players and normal builds from wearing
+  things they don't own; a modded client can still send any cosmetic ID, and other clients will show it. Checking other
+  players' inventories needs your server (e.g. CloudScript validating purchases).
 - When the master leaves, clients accept the next master. A hijacker who calls `SetMasterClient` in that same moment
   and wins the race can be accepted, because nobody legitimate is left to object; your `Authority` can veto it.
 - Bans and the word filter run on clients. A modded client can skip its own filter; everyone else still filters its name.
 - **Real anti-cheat needs an authority outside the players' games**: a Photon Server plugin (Photon Server / Enterprise
   Cloud), or an authoritative backend such as PlayFab CloudScript / Azure Functions with Photon webhooks, plus custom
   authentication so only verified accounts can connect. `PhotonVRAuthority` is where you plug that in.
+
+## Names and cosmetic ownership
+
+**Names.** `PhotonVRManager.SetUsername(name)` sets your Photon `NickName`, which lives on your own actor. No master is
+needed: it works with no master, during a master switch and after the master disconnects. Your own scripts (e.g. a
+name computer) can also set `PhotonNetwork.NickName` directly; PhotonVR notices, runs the word filter, saves it and
+shows it. Blocked names are put back to the previous name and raise `UsernameRejected`. Every accepted change raises
+`PhotonVRManager.UsernameChanged`.
+
+**Owned cosmetics.** Cosmetics are still equipped by ID exactly as before. To stop players wearing items they don't
+own, tick **Require Owned Cosmetics** on the manager and list free items in **Owned Cosmetics**. Add the rest at
+runtime:
+```cs
+PhotonVRManager.SetOwnedCosmetics(new[] { "VRTopHat", "VRSunglasses" });  // e.g. from your backend
+PhotonVRManager.GrantCosmetic("VRCrown");                                  // after a purchase
+PhotonVRManager.CosmeticRejected += (slot, id) => ShowShop(id);
+```
+Equipping something not owned is refused locally, and anything not owned (e.g. from an old save) is never sent to
+other players. With PlayFab, tick **Load Owned Cosmetics** on `PhotonVRPlayFabAuth` instead (see below).
+This is client side: see the honest limits under [Security](#security).
+
+**Manager toggles (all off by default):**
+| Toggle | What it does |
+|---|---|
+| `RequireOwnedCosmetics` | Only owned cosmetics can be equipped and sent. |
+| `OwnedCosmetics` | IDs everyone owns (free / default items). |
+| `ResyncOnMasterSwitch` | When the master changes, check once that your name / colour / cosmetics are still what you set and re-send them if not. Names don't depend on the master anyway; this is a safety net and sends nothing unless something differs. |
 
 ## Banned words
 
@@ -386,7 +420,13 @@ go through the word filter.
    Realtime App ID under Add-ons > Photon.
 4. Add `PhotonVRPlayFabAuth` to a scene object and untick `ConnectOnAwake` on the manager. It logs in (device ID or your
    custom ID), gets a Photon token, connects with `UserId = PlayFabId`, and registers `PhotonVRPlayFabSaveProvider`
-   (user data key `PhotonVRSave`). If you log in some other way, call `OnLoggedIn(result)` yourself.
+   (user data key `PhotonVRSave`). If you log in some other way, call `OnLoggedIn(result)` yourself, or untick
+   `LoginOnStart` and just use the toggles below.
+5. Optional toggles on `PhotonVRPlayFabAuth` (off by default; they only do anything once PlayFab is logged in):
+   - `SyncDisplayName`: every accepted name change is also sent to `UpdateUserTitleDisplayName` (3-25 characters;
+     PlayFab may refuse names that are taken or that its own filter blocks; that is logged, the Photon name still changes).
+   - `LoadOwnedCosmetics` + `CosmeticItemPrefix`: reads `GetUserInventory` and passes the ItemIds to
+     `PhotonVRManager.SetOwnedCosmetics` when you log in or connect. Call `RefreshOwnedCosmetics()` after a purchase.
 
 ## Samples and tests
 - Package Manager > Photon VR Plus > Samples: **Lobby** and **Playground**. In the .unitypackage they are in

@@ -305,7 +305,7 @@ namespace Photon.VR
             // Applies colour / cosmetic changes for everyone without waiting for the legacy RPC.
             if (targetPlayer == null || changedProps == null) return;
             if (!changedProps.ContainsKey(PhotonVRKeys.Colour) && !changedProps.ContainsKey(PhotonVRKeys.Cosmetics) &&
-                !changedProps.ContainsKey(PhotonVRKeys.CosmeticTints))
+                !changedProps.ContainsKey(PhotonVRKeys.CosmeticTints) && !changedProps.ContainsKey(ActorProperties.PlayerName))
                 return;
             foreach (PhotonVRPlayer p in PhotonVRPlayer.All)
                 if (p != null && p.Owner == targetPlayer)

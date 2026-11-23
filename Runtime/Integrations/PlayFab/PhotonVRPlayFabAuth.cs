@@ -1,5 +1,6 @@
 #if PHOTONVR_PLAYFAB
 using System;
+using System.Collections.Generic;
 
 using Photon.Pun;
 using Photon.Realtime;
@@ -24,8 +25,12 @@ namespace Photon.VR.PlayFab
         public string CustomId = "";
         [Tooltip("Load and save name / colour / cosmetics in PlayFab user data.")]
         public bool UsePlayFabSaves = true;
-        [Tooltip("Also push the name to the PlayFab title display name (PlayFab can run its own profanity filter on it).")]
+        [Tooltip("Push every name change to the PlayFab title display name (UpdateUserTitleDisplayName). Works with your own login too: untick Login On Start.")]
         public bool SyncDisplayName = false;
+        [Tooltip("Load the player's PlayFab inventory as their owned cosmetics (used when Require Owned Cosmetics is on in the manager).")]
+        public bool LoadOwnedCosmetics = false;
+        [Tooltip("Prefix on PlayFab ItemIds, e.g. \"cosmetic_\" makes item \"cosmetic_VRTopHat\" own cosmetic \"VRTopHat\". Empty = ItemId is the cosmetic ID.")]
+        public string CosmeticItemPrefix = "";
 
         public static string PlayFabId { get; private set; }
         public static bool LoggedIn => !string.IsNullOrEmpty(PlayFabId) && PlayFabClientAPI.IsClientLoggedIn();
@@ -34,6 +39,18 @@ namespace Photon.VR.PlayFab
         public static event Action<string> LoginFailed;
 
         private PhotonVRPlayFabSaveProvider saveProvider;
+
+        private void OnEnable()
+        {
+            if (SyncDisplayName) PhotonVRManager.UsernameChanged += PushDisplayName;
+            if (LoadOwnedCosmetics) PhotonVRManager.ConnectedToMaster += LoadOwnedCosmeticsIfNeeded;
+        }
+
+        private void OnDisable()
+        {
+            PhotonVRManager.UsernameChanged -= PushDisplayName;
+            PhotonVRManager.ConnectedToMaster -= LoadOwnedCosmeticsIfNeeded;
+        }
 
         private void Start()
         {
@@ -61,9 +78,11 @@ namespace Photon.VR.PlayFab
             PlayFabId = result.PlayFabId;
             if (UsePlayFabSaves && saveProvider == null)
             {
-                saveProvider = new PhotonVRPlayFabSaveProvider { SyncDisplayName = SyncDisplayName };
+                saveProvider = new PhotonVRPlayFabSaveProvider();
                 Photon.VR.Saving.PhotonVRSaveSystem.Register(saveProvider);
             }
+
+            if (LoadOwnedCosmetics) RefreshOwnedCosmetics();
 
             string appId = PhotonVRManager.Manager != null ? PhotonVRManager.Manager.AppId : PhotonNetwork.PhotonServerSettings.AppSettings.AppIdRealtime;
             PlayFabClientAPI.GetPhotonAuthenticationToken(new GetPhotonAuthenticationTokenRequest { PhotonApplicationId = appId },
@@ -83,6 +102,45 @@ namespace Photon.VR.PlayFab
         private void OnDestroy()
         {
             if (saveProvider != null) Photon.VR.Saving.PhotonVRSaveSystem.Unregister(saveProvider);
+        }
+
+        private bool cosmeticsLoaded;
+        private void LoadOwnedCosmeticsIfNeeded()
+        {
+            if (!cosmeticsLoaded) RefreshOwnedCosmetics();
+        }
+
+        /// <summary>Reads the PlayFab inventory into PhotonVRManager.SetOwnedCosmetics. Call again after a purchase.</summary>
+        public void RefreshOwnedCosmetics()
+        {
+            if (!PlayFabClientAPI.IsClientLoggedIn()) return;
+            PlayFabClientAPI.GetUserInventory(new GetUserInventoryRequest(), result =>
+            {
+                cosmeticsLoaded = true;
+                var ids = new List<string>();
+                if (result.Inventory != null)
+                    foreach (ItemInstance item in result.Inventory)
+                        if (item != null && item.ItemId != null && item.ItemId.StartsWith(CosmeticItemPrefix ?? "", StringComparison.Ordinal))
+                            ids.Add(item.ItemId.Substring((CosmeticItemPrefix ?? "").Length));
+                PhotonVRManager.SetOwnedCosmetics(ids);
+            }, e => PhotonVRLog.Warn("PlayFab inventory not loaded: " + e.ErrorMessage));
+        }
+
+        private static string pushedName;
+
+        /// <summary>Sets the PlayFab title display name. Skips repeats and names PlayFab won't take (3-25 characters).</summary>
+        public static void PushDisplayName(string name)
+        {
+            if (string.IsNullOrEmpty(name) || name.Length < 3 || name.Length > 25 || name == pushedName) return;
+            if (!PlayFabClientAPI.IsClientLoggedIn()) return;
+            pushedName = name;
+            PlayFabClientAPI.UpdateUserTitleDisplayName(new UpdateUserTitleDisplayNameRequest { DisplayName = name },
+                _ => { },
+                e =>
+                {
+                    if (pushedName == name) pushedName = null;
+                    PhotonVRLog.Warn("PlayFab display name not updated: " + e.ErrorMessage);
+                });
         }
 
         private static void Fail(string error)

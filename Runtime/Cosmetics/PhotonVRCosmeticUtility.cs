@@ -67,6 +67,16 @@ namespace Photon.VR
         /// Converts the "Cosmetics" custom property to a string dictionary. Photon normally delivers a
         /// <c>Dictionary&lt;string,string&gt;</c>, but other clients may send a Hashtable / object dictionary.
         /// </summary>
+        /// <summary>True when both dictionaries hold the same slots and IDs.</summary>
+        public static bool SameDictionary(Dictionary<string, string> a, Dictionary<string, string> b)
+        {
+            if (a == null || b == null) return a == b;
+            if (a.Count != b.Count) return false;
+            foreach (var kv in a)
+                if (!b.TryGetValue(kv.Key, out string v) || v != kv.Value) return false;
+            return true;
+        }
+
         public static Dictionary<string, string> ToStringDictionary(object value)
         {
             if (value is Dictionary<string, string> typed)

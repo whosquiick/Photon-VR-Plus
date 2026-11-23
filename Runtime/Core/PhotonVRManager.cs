@@ -111,6 +111,14 @@ namespace Photon.VR
         [Header("Security")]
         [Tooltip("Keep the IDs encrypted in memory with a per-session key and scrub them from Photon while connected. Off by default. Can also be enabled on the settings asset.")]
         public bool HardenMemory = false;
+        [Tooltip("When the master client changes, check once that our own name / colour / cosmetics are still what we set, and re-send them if not. Names never depend on the master; this is just a safety net.")]
+        public bool ResyncOnMasterSwitch = false;
+
+        [Header("Cosmetic ownership")]
+        [Tooltip("Only let the local player equip (and send) cosmetics in Owned Cosmetics or granted at runtime (GrantCosmetic / PlayFab).")]
+        public bool RequireOwnedCosmetics = false;
+        [Tooltip("Cosmetic IDs every player owns, e.g. free or default items.")]
+        public List<string> OwnedCosmetics = new List<string>();
 
         [Header("Other")]
         // This should always be true

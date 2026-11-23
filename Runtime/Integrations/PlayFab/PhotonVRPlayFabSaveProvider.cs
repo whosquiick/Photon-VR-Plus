@@ -15,8 +15,6 @@ namespace Photon.VR.PlayFab
         public bool SyncDisplayName;
         public string Name => "PlayFab";
 
-        private string pushedName;
-
         public void Load(Action<PhotonVRSaveData> done)
         {
             if (!PlayFabClientAPI.IsClientLoggedIn()) { done(null); return; }
@@ -44,13 +42,7 @@ namespace Photon.VR.PlayFab
                 },
                 _ => { }, e => PhotonVRLog.Warn("PlayFab save failed: " + e.ErrorMessage));
 
-            // PlayFab display names must be 3-25 chars; PlayFab can also run its own profanity check on them.
-            if (SyncDisplayName && !string.IsNullOrEmpty(data.Username) && data.Username.Length >= 3 && data.Username != pushedName)
-            {
-                pushedName = data.Username;
-                PlayFabClientAPI.UpdateUserTitleDisplayName(new UpdateUserTitleDisplayNameRequest { DisplayName = data.Username },
-                    _ => { }, e => PhotonVRLog.Warn("PlayFab display name: " + e.ErrorMessage));
-            }
+            if (SyncDisplayName) PhotonVRPlayFabAuth.PushDisplayName(data.Username);
         }
     }
 }

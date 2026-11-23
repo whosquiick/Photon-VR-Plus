@@ -137,6 +137,7 @@ namespace Photon.VR
                     case ProfileEvent: PhotonVRProfiles.HandleEvent(e); break;
                     case MasterHandoffEvent: PhotonVRMasterClient.HandleHandoffEvent(e); break;
                     case KickEvent: PhotonVRModeration.HandleKickEvent(e); break;
+                    case EventCode.PropertiesChanged: PhotonVRProfiles.HandlePropertiesChanged(e); break;
                 }
             }
 
@@ -163,8 +164,14 @@ namespace Photon.VR
             }
 
             public void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged) { }
-            public void OnPlayerPropertiesUpdate(Photon.Realtime.Player targetPlayer, Hashtable changedProps) => PhotonVRProfiles.OnPlayerPropertiesUpdate(targetPlayer, changedProps);
-            public void OnMasterClientSwitched(Photon.Realtime.Player newMasterClient) => PhotonVRMasterClient.OnMasterClientSwitched(newMasterClient);
+            // Property changes are handled from the raw event in OnEvent, which carries who wrote them.
+            public void OnPlayerPropertiesUpdate(Photon.Realtime.Player targetPlayer, Hashtable changedProps) { }
+
+            public void OnMasterClientSwitched(Photon.Realtime.Player newMasterClient)
+            {
+                PhotonVRMasterClient.OnMasterClientSwitched(newMasterClient);
+                PhotonVRProfiles.OnMasterClientSwitched();
+            }
 
             public void OnFriendListUpdate(List<FriendInfo> friendList) { }
             public void OnCreatedRoom() { }

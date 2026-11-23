@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.1.1] - 2026-11-23
+Names, cosmetic ownership and PlayFab options. Drop-in over 1.1.0; new options are off by default.
+
+### Fixed
+- Changing a name no longer depends on anything but your own client: the name is your own actor's `NickName`, so it
+  works through master switches and after the master disconnects.
+- Names (and colour / cosmetics) set by your own scripts through `PhotonNetwork.NickName` or `SetCustomProperties` were
+  treated as tampering and reverted. They are now kept, after the word filter.
+- Publishing your profile removed every player's cached profile from the room, so late joiners could see old names.
+  Only your own cached profile is replaced now.
+- Restoring tampered properties now uses the writer Photon stamps on the change, so it only reacts to changes really
+  made by someone else, and reports that player.
+
+### Added
+- `PhotonVRManager.UsernameChanged` event.
+- Optional owned-cosmetics check: `RequireOwnedCosmetics` and `OwnedCosmetics` on the manager; `SetOwnedCosmetics`,
+  `GrantCosmetic`, `OwnsCosmetic` and `CosmeticRejected`. Unowned cosmetics can't be equipped and are never sent.
+- `ResyncOnMasterSwitch` (manager): one-time check of your own properties when the master changes.
+- PlayFab (`PhotonVRPlayFabAuth`): `SyncDisplayName` now follows every name change (`UpdateUserTitleDisplayName`),
+  not just saves. Also `LoadOwnedCosmetics` / `CosmeticItemPrefix` / `RefreshOwnedCosmetics()` and `PushDisplayName(name)`.
+- `PhotonVRCosmeticUtility.SameDictionary`.
+
 ## [1.1.0] - 2026-11-23
 Networking, security and moderation release. Still a drop-in replacement: no class, namespace, public member, GUID,
 PlayerPrefs key or Photon property key was renamed or removed.

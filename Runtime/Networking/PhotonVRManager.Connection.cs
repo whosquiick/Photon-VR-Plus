@@ -156,6 +156,7 @@ namespace Photon.VR
             PhotonNetwork.NickName = string.IsNullOrEmpty(savedName)
                 ? "Player" + UnityEngine.Random.Range(1000, 9999)
                 : savedName;
+            acceptedName = PhotonNetwork.NickName;
             m.PushLocalProperties();
 
             m.SetState(ConnectionState.Connecting);
@@ -270,7 +271,7 @@ namespace Photon.VR
 
             // Make sure name / colour / cosmetics are current (they are sent when joining a room).
             if (string.IsNullOrEmpty(PhotonNetwork.NickName))
-                PhotonNetwork.NickName = PlayerPrefs.GetString(PhotonVRKeys.PrefsUsername);
+                PhotonNetwork.NickName = AcceptedName;
             PushLocalProperties();
 
             ConnectedToMaster?.Invoke();
