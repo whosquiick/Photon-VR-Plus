@@ -14,6 +14,8 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 - **New in 1.1.0:** master-client and ownership validation, blocked kicks and renames, a banned-word filter for names and
   room codes, push-to-talk, voice presets and mute lists, grabbable/throwable objects, simple body IK, nameplates,
   room codes, spectators, a debug overlay, a cosmetic registry with tints, pluggable saving and an optional PlayFab adapter.
+- **1.2.4:** fixes for player builds (PlayFab), play mode with domain reload off and Unity 2023+/6 warnings, a
+  dependency check that explains missing packages, and a Setup Scene that walks you through the App IDs.
 - **1.2.2:** new **Network Object** component that networks any object in one click; emotes and the edit-mode tests were removed.
 - **New in 1.2.1:** a `PhotonVR` static class with the common calls and events in one place (see
   [Building on the API](#building-on-the-api)), plus a few small helpers.
@@ -28,22 +30,43 @@ Unity package for **Photon PUN 2 VR multiplayer** (Gorilla Tag-style fan games a
 ## Requirements
 | Dependency | Where |
 |---|---|
-| Unity 2020.3 LTS or newer (tested API against 2021.x reference assemblies) | |
+| Unity 2020.3 LTS or newer (Unity 6 works too) | |
 | **PUN 2** (free or plus) | [Asset Store](https://assetstore.unity.com/packages/tools/network/pun-2-free-119922) |
 | **Photon Voice 2** | [Asset Store](https://assetstore.unity.com/packages/tools/audio/photon-voice-2-130518) |
-| **TextMeshPro** + *TMP Essential Resources* | Built in: Window > TextMeshPro > Import TMP Essential Resources |
+| **TextMeshPro** + *TMP Essential Resources* | Package Manager (built into Unity 6), then Window > TextMeshPro > Import TMP Essential Resources |
 | An XR rig (XR Interaction Toolkit XR Origin, OpenXR, Oculus/Meta rig, or your own) | Package Manager |
+| *Optional:* PlayFab Unity SDK | [GitHub](https://github.com/PlayFab/UnitySDK) |
 
 Photon Voice 2 already contains PUN 2. If you import only Photon Voice 2, you get both.
 
-## Install
-**Option A – .unitypackage (simplest):** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.2.2.unitypackage`.
-Everything goes into `Assets/PhotonVR`.
+## Quickstart
+1. **Install the dependencies first:** import **Photon Voice 2** from the Asset Store (it includes PUN 2), and make sure
+   **TextMeshPro** is installed. Close the PUN wizard or type anything in it.
+2. **Install Photon VR Plus** (pick one, not both):
+   - **Git URL (UPM):** Window > Package Manager > **+** > *Add package from git URL…* and paste
+     `https://github.com/whosquiick/Photon-VR-Plus.git#v1.2.4` (drop `#v1.2.4` to follow the latest `main`).
+   - **UPM zip:** unzip `PhotonVRPlus-1.2.4-UPM.zip`, then Package Manager > **+** > *Add package from disk…* >
+     `com.photonvrplus.core/package.json`.
+   - **.unitypackage:** Assets > Import Package > Custom Package… > `PhotonVRPlus-1.2.4.unitypackage`. Everything goes
+     into `Assets/PhotonVR`.
+3. Open your scene with your XR rig (camera tagged **MainCamera**).
+4. Click **Tools > PhotonVR > Setup Scene**. It adds the manager, voice and player spawner, creates
+   `Resources/PhotonVRSettings`, checks the player prefab and asks for your App IDs.
+5. Paste your **App ID** (PUN) and **Voice App ID** from <https://dashboard.photonengine.com> into the window that opens
+   (or later with **Tools > PhotonVR > Set App IDs...**). They're saved encrypted.
+6. Press **Play**. The manager connects, joins the `Default` queue and spawns your player. Run a second build to see each other.
 
-**Option B – UPM:** unzip `PhotonVRPlus-1.0.1-UPM.zip`, then Window > Package Manager > **+** > *Add package from disk…* >
-select `com.photonvrplus.core/package.json`. (You can also push the folder to a Git repo and use *Add package from git URL*.)
+If something's off, **Tools > PhotonVR > Validate Setup** lists what's missing, and **Tools > PhotonVR > Check
+Dependencies** tells you if PUN 2, Photon Voice 2 or TextMeshPro aren't installed. If you imported Photon VR Plus
+before Photon and see a pile of "Photon could not be found" errors, install Photon Voice 2 and restart Unity once.
 
-Use one option, not both.
+### What Setup Scene gives you
+- `PhotonVRManager`: Head = Main Camera, Left/Right Hand = your controllers (auto-detected, so check them!)
+- `Voice`: PUN voice client + Recorder (your microphone) + `PhotonVRVoice`
+- `PlayerSpawner`: spawns `Resources/PhotonVR/Player` when you join a room
+- Set the **Region** (`eu`, `us`, `usw`, `asia`, `jp`, `au`, … or `best`) on the manager or the settings asset.
+- If the PUN wizard put your IDs into PhotonServerSettings, use **Tools > PhotonVR > Move App IDs Out Of
+  PhotonServerSettings** so they aren't shipped as plain text.
 
 ### Upgrading from the original PhotonVR
 1. If you customised `Assets/Resources/PhotonVR/Player.prefab` (your cosmetics), **move** it somewhere outside that
@@ -51,24 +74,9 @@ Use one option, not both.
 2. Delete the old `Assets/Resources/PhotonVR` folder.
 3. Import Photon VR Plus. Your scenes and prefabs reconnect to the new scripts automatically (same script GUIDs).
 4. If you kept your own `Player.prefab` under `Resources/PhotonVR/`, delete the one shipped in Photon VR Plus
-   (`Assets/PhotonVR/Runtime/Resources/PhotonVR/Player.prefab`) so that only one `PhotonVR/Player` exists. Your old
-   prefab works as is: its PhotonTransformViews are turned off at runtime and the smooth sync takes over.
-
-## Setup (5 minutes)
-1. Import PUN 2 + Photon Voice 2 and TMP Essentials. Enter anything in the PUN wizard, or skip it.
-2. Import Photon VR Plus (see above).
-3. Open your scene with your XR rig (camera tagged **MainCamera**).
-4. **Tools > PhotonVR > Setup Scene**, or drag `Prefabs/PhotonVRManager.prefab` into the scene. You get:
-   - `PhotonVRManager`: Head = Main Camera, Left/Right Hand = your controllers (auto-detected; check them!)
-   - `Voice`: PUN voice client + Recorder (your microphone) + `PhotonVRVoice`
-   - `PlayerSpawner`: spawns `Resources/PhotonVR/Player` when you join a room
-5. **Tools > PhotonVR > Set App IDs...** and paste your **App ID** (PUN) and **Voice App ID** from
-   <https://dashboard.photonengine.com>. They are saved encrypted to `Resources/PhotonVRSettings` (or to the scene's
-   manager). Set the **Region** (`eu`, `us`, `usw`, `asia`, `jp`, `au`, … or `best`) on the manager or settings asset.
-   If the PUN wizard put your IDs into PhotonServerSettings, use **Tools > PhotonVR > Move App IDs Out Of
-   PhotonServerSettings** so they are not shipped as plain text.
-6. Press Play. The manager connects, joins the `Default` queue and spawns your player. Run a second build to see each other.
-7. **Tools > PhotonVR > Validate Setup** lists anything that is still missing.
+   (`Assets/PhotonVR/Runtime/Resources/PhotonVR/Player.prefab`, or with UPM use **Tools > PhotonVR > Prefabs > Copy
+   Default Player Prefab To Assets** instead) so that only one `PhotonVR/Player` exists. Your old prefab works as is:
+   its PhotonTransformViews are turned off at runtime and the smooth sync takes over.
 
 ## Package layout
 ```
@@ -99,6 +107,7 @@ Samples~/      Lobby and Playground scenes (Package Manager > Samples; Assets/Ph
 Editor/
   Inspectors/  manager inspector, encrypted-ID drawer, testing inspectors
   Tools/       Setup Scene, Set App IDs window, prefab builders, build check
+  SetupCheck/  tiny standalone assembly that explains missing PUN / Voice / TMP instead of compile errors
 ```
 
 ## Using it from code (same API as PhotonVR)
@@ -401,6 +410,11 @@ PhotonVRModeration.Ban(player, "cheating");                // session ban by Use
 - When the master leaves, clients accept the next master. A hijacker who calls `SetMasterClient` in that same moment
   and wins the race can be accepted, because nobody legitimate is left to object; your `Authority` can veto it.
 - Bans and the word filter run on clients. A modded client can skip its own filter; everyone else still filters its name.
+- Kicks are a request the kicked player's own game obeys. A modded client can ignore it or rejoin; session bans only
+  live on the current master. Keep persistent bans in your backend and enforce them with Photon custom
+  authentication (PlayFab's ban check in `PhotonVRPlayFabManager` is also only as strong as that).
+- Rate limits (RPCs, profiles, fake kicks, name changes) stop honest clients from doing extra work on floods. They
+  can't stop a cheater from sending the messages; Photon's own message limits and your dashboard settings do that.
 - **Real anti-cheat needs an authority outside the players' games**: a Photon Server plugin (Photon Server / Enterprise
   Cloud), or an authoritative backend such as PlayFab CloudScript / Azure Functions with Photon webhooks, plus custom
   authentication so only verified accounts can connect. `PhotonVRAuthority` is where you plug that in.
@@ -411,7 +425,8 @@ PhotonVRModeration.Ban(player, "cheating");                // session ban by Use
 needed: it works with no master, during a master switch and after the master disconnects. Your own scripts (e.g. a
 name computer) can also set `PhotonNetwork.NickName` directly; PhotonVR notices, runs the word filter, saves it and
 shows it. Blocked names are put back to the previous name and raise `UsernameRejected`. Every accepted change raises
-`PhotonVRManager.UsernameChanged`.
+`PhotonVRManager.UsernameChanged`. Setting the same name again does nothing, and quick bursts of changes (typing on a
+name keyboard) are merged: the latest name is sent as soon as the limit allows (a few changes, then about one a second).
 
 **Owned cosmetics.** Cosmetics are still equipped by ID exactly as before. To stop players wearing items they don't
 own, tick **Require Owned Cosmetics** on the manager and list free items in **Owned Cosmetics**. Add the rest at

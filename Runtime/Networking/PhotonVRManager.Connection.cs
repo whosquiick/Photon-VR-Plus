@@ -59,7 +59,7 @@ namespace Photon.VR
         private AppSettings BuildAppSettings()
         {
             var app = new AppSettings();
-            if (PhotonNetwork.PhotonServerSettings != null)
+            if (PhotonNetwork.PhotonServerSettings != null && PhotonNetwork.PhotonServerSettings.AppSettings != null)
                 PhotonNetwork.PhotonServerSettings.AppSettings.CopyTo(app);
 
             app.AppIdRealtime = ResolveId(PhotonVRAppIdKind.Realtime);
@@ -152,7 +152,7 @@ namespace Photon.VR
             m.autoJoinPending = m.JoinRoomOnConnect;
 
             // Name, colour and cosmetics are set before connecting so they arrive together with the join.
-            string savedName = PlayerPrefs.GetString(PhotonVRKeys.PrefsUsername);
+            string savedName = SanitizeSavedName(PlayerPrefs.GetString(PhotonVRKeys.PrefsUsername));
             PhotonNetwork.NickName = string.IsNullOrEmpty(savedName)
                 ? "Player" + UnityEngine.Random.Range(1000, 9999)
                 : savedName;

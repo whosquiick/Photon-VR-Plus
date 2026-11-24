@@ -193,3 +193,15 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
 - Removed the `Tests/` folder (the `PhotonVR.Tests.Editor` assembly). Nothing at runtime used it.
 - Added `Photon.VR.PhotonVRNetworkObject` (named so it doesn't clash with Unity Netcode's `NetworkObject`).
 - Everything else is unchanged.
+
+## 1.2.3 notes
+- Edit-mode saving and dirty-marking moved from the Runtime scripts into the Editor assembly. No public API changed.
+
+## 1.2.4 notes
+- No public members, serialized fields, RPC names, property keys or GUIDs changed.
+- `RPCRefreshPlayerValues` now takes an optional `PhotonMessageInfo` (PUN fills it in), so it can be rate limited.
+  The RPC name is the same and older clients still call it the same way.
+- `PhotonVRSetupMenu.ValidateSetup(bool showDialog)` was added next to the old `ValidateSetup()`, which still works.
+- New editor-only assembly `PhotonVR.SetupCheck` (not auto-referenced, nothing references it).
+- `PhotonVRPlayFabAuth.LoginWithDeviceId()` uses a random ID saved on the device when the platform has no device ID
+  (`SystemInfo.unsupportedIdentifier`). Players on those platforms used to share one PlayFab account.

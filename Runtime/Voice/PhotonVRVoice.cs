@@ -55,6 +55,14 @@ namespace Photon.VR
         /// <summary>Raised when the mute state changes (true = muted).</summary>
         public static event Action<bool> MuteChanged;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            Instance = null;
+            MuteChanged = null;
+        }
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -233,7 +241,7 @@ namespace Photon.VR
         private static VoiceConnection FindVoiceConnection()
         {
             // Only PUN-linked clients (they follow the PUN room). Their type names differ by Voice version.
-            foreach (VoiceConnection vc in FindObjectsOfType<VoiceConnection>())
+            foreach (VoiceConnection vc in PhotonVRFind.All<VoiceConnection>())
             {
                 string typeName = vc.GetType().Name;
                 if (typeName == "PunVoiceClient" || typeName == "PhotonVoiceNetwork")

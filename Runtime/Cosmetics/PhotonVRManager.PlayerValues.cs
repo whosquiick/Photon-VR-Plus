@@ -29,10 +29,49 @@ namespace Photon.VR
                 return false;
             }
 
+            // Same name again (e.g. a script calling this every frame): nothing to send.
+            if (Name == acceptedName && PhotonNetwork.LocalPlayer.NickName == Name)
+            {
+                pendingName = null;
+                return true;
+            }
+
+            // Every change is a network message, a PlayerPrefs write and maybe a PlayFab call, so quick bursts
+            // (typing on a name keyboard) are merged: the latest name goes out as soon as the limit allows.
+            if (Manager != null && !NameLimit.TryConsume())
+            {
+                pendingName = Name;
+                return true;
+            }
+
+            pendingName = null;
             // Our own actor property: no master client involved, so it works whoever is (or isn't) master.
             SetLocalNickName(Name);
             AcceptUsername(Name);
             return true;
+        }
+
+        private static PhotonVRRateLimiter nameLimit;
+        private static string pendingName;
+        private static PhotonVRRateLimiter NameLimit => nameLimit ?? (nameLimit = new PhotonVRRateLimiter(1f, 4f));
+
+        // Called from Update: sends a name that was held back by the rate limit.
+        private static void FlushPendingName()
+        {
+            if (pendingName == null || !NameLimit.TryConsume()) return;
+            string name = pendingName;
+            pendingName = null;
+            SetLocalNickName(name);
+            AcceptUsername(name);
+        }
+
+        // Names saved by older versions (or edited in PlayerPrefs) go through the same checks as new ones.
+        private static string SanitizeSavedName(string saved)
+        {
+            string name = PhotonVRWordFilter.StripMarkup(saved ?? string.Empty).Trim();
+            if (name.Length == 0 || name.Length > PhotonVRProfiles.MaxNameLength || PhotonVRWordFilter.Default.IsBlocked(name))
+                return null;
+            return name;
         }
 
         /// <summary>Raised when a name was refused by the word filter.</summary>
@@ -107,7 +146,7 @@ namespace Photon.VR
             get
             {
                 if (!string.IsNullOrEmpty(acceptedName)) return acceptedName;
-                string saved = PlayerPrefs.GetString(PhotonVRKeys.PrefsUsername);
+                string saved = SanitizeSavedName(PlayerPrefs.GetString(PhotonVRKeys.PrefsUsername));
                 return !string.IsNullOrEmpty(saved) ? saved : "Player" + (PhotonNetwork.LocalPlayer?.ActorNumber ?? 0);
             }
         }

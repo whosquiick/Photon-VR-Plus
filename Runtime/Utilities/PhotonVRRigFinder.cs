@@ -17,7 +17,7 @@ namespace Photon.VR
             if (Camera.main != null)
                 return Camera.main.transform;
 
-            foreach (Camera cam in UnityEngine.Object.FindObjectsOfType<Camera>())
+            foreach (Camera cam in PhotonVRFind.All<Camera>())
                 if (cam.name.Contains("Camera") || cam.name.Contains("Head"))
                     return cam.transform;
             return null;
@@ -34,7 +34,7 @@ namespace Photon.VR
         {
             Transform best = null;
             int bestScore = 0;
-            foreach (Transform t in UnityEngine.Object.FindObjectsOfType<Transform>())
+            foreach (Transform t in PhotonVRFind.All<Transform>())
             {
                 string n = t.name;
                 if (!Contains(n, side) || Contains(n, "Cosmetic"))

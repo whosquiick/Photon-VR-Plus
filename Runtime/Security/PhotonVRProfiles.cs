@@ -36,6 +36,14 @@ namespace Photon.VR
 
         public static bool TryGet(int actor, out PhotonVRProfile profile) => profiles.TryGetValue(actor, out profile);
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            profiles.Clear();
+            ownWrites.Clear();
+        }
+
         /// <summary>The name to show for a player: their own published name, filtered.</summary>
         public static string DisplayName(Photon.Realtime.Player player)
         {

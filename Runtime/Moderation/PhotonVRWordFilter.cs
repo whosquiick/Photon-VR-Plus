@@ -25,6 +25,13 @@ namespace Photon.VR
 
         private static PhotonVRWordFilter defaultFilter;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            defaultFilter = null;
+        }
+
         /// <summary>The filter used by PhotonVR. Built from the PhotonVRBlocklist asset (or the default lists) on first use; assign to replace it.</summary>
         public static PhotonVRWordFilter Default
         {

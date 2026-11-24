@@ -31,6 +31,20 @@ namespace Photon.VR
         private static int reclaimAttempts;
         private static double reclaimWindowStart;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            legitimateActor = -1;
+            handoffTarget = -1;
+            handoffTime = 0;
+            reclaimAttempts = 0;
+            reclaimWindowStart = 0;
+            MasterChanged = null;
+            HandoffWindow = 10f;
+            KickHijackers = true;
+        }
+
         /// <summary>The master PhotonVR trusts. Usually equals PhotonNetwork.MasterClient.</summary>
         public static Photon.Realtime.Player LegitimateMaster =>
             PhotonNetwork.CurrentRoom != null && legitimateActor > 0 ? PhotonNetwork.CurrentRoom.GetPlayer(legitimateActor) : PhotonNetwork.MasterClient;
@@ -85,7 +99,7 @@ namespace Photon.VR
         internal static void HandleHandoffEvent(EventData e)
         {
             Photon.Realtime.Player sender = PhotonNetwork.CurrentRoom?.GetPlayer(e.Sender);
-            if (sender == null) return;
+            if (sender == null || !PhotonVRSecurity.CheckRate(sender, "handoff-event", 1f, 3f)) return;
             if (sender.ActorNumber != legitimateActor)
             {
                 PhotonVRSecurity.Report(sender, PhotonVRViolationType.MasterTakeover, "handoff announced by a non-master");

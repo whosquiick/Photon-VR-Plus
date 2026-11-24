@@ -1,7 +1,7 @@
 {
   "name": "com.photonvrplus.core",
   "displayName": "Photon VR Plus",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "unity": "2020.3",
   "description": "Photon VR Plus: a rebuilt, drop-in replacement for PhotonVR (fchb1239) for Photon PUN 2 VR games. Includes App ID + Voice App ID settings, Photon Voice with push-to-talk, spatial presets and mute lists, a networked player prefab with cosmetic slots, a cosmetic registry and tints, grabbable objects, nameplates, room codes, spectators, master-client and ownership validation, a banned-word filter, saving with an optional PlayFab manager (encrypted Title ID, login, currency, items and purchases), and a debug overlay. It keeps the original class names, fields and cosmetic keys. Requires PUN 2 and Photon Voice 2 from the Asset Store, plus TextMeshPro.",
   "keywords": [

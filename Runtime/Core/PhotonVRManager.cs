@@ -259,13 +259,42 @@ namespace Photon.VR
         private void Update()
         {
             if (Manager == this)
+            {
+                FlushPendingName();
                 PhotonVRSaveSystem.Tick();
+            }
         }
 
         private void OnDestroy()
         {
             if (Manager == this)
                 Manager = null;
+        }
+
+        // With "Enter Play Mode Options" (domain reload off) statics survive between play sessions, so the old
+        // manager, its event listeners and the last name would leak into the next run. Clear them first.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            Manager = null;
+            StateChanged = null;
+            ConnectedToMaster = null;
+            JoinedRoom = null;
+            LeftRoom = null;
+            DisconnectedFromServer = null;
+            CosmeticsChanged = null;
+            ColourChanged = null;
+            LocalPlayerSpawned = null;
+            PlayerJoined = null;
+            PlayerLeft = null;
+            UsernameRejected = null;
+            UsernameChanged = null;
+            CosmeticRejected = null;
+            RoomCodeRejected = null;
+            acceptedName = null;
+            grantedCosmetics.Clear();
+            nameLimit = null;
+            pendingName = null;
         }
 
         /// <summary>
@@ -343,7 +372,7 @@ namespace Photon.VR
         {
             if (Manager != null)
                 return true;
-            Manager = FindObjectOfType<PhotonVRManager>();
+            Manager = PhotonVRFind.First<PhotonVRManager>();
             if (Manager != null)
                 return true;
             PhotonVRLog.Error($"{caller}: there is no PhotonVRManager in the scene. Drop in the PhotonVRManager prefab or use Tools > PhotonVR > Setup Scene.");

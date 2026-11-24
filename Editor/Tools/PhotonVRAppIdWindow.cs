@@ -51,8 +51,13 @@ namespace Photon.VR
             {
                 if (GUILayout.Button("Encrypt and Save"))
                 {
-                    Save(ResolveTarget(true), appId, voiceAppId);
-                    appId = voiceAppId = "";
+                    if (LooksLikeAppId(appId) && LooksLikeAppId(voiceAppId) ||
+                        EditorUtility.DisplayDialog("Photon VR Plus", "That doesn't look like a Photon App ID (they look like " +
+                            "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Save it anyway?", "Save", "Cancel"))
+                    {
+                        Save(ResolveTarget(true), appId?.Trim(), voiceAppId?.Trim());
+                        appId = voiceAppId = "";
+                    }
                     GUI.FocusControl(null);
                 }
             }
@@ -69,12 +74,14 @@ namespace Photon.VR
         private Object ResolveTarget(bool create)
         {
             if (target == Target.SceneManager)
-                return FindObjectOfType<PhotonVRManager>();
+                return PhotonVRFind.First<PhotonVRManager>();
             PhotonVRSettings settings = PhotonVRSettings.LoadDefault();
             if (settings == null && create)
                 settings = PhotonVRSetupMenu.CreateSettingsAsset();
             return settings;
         }
+
+        private static bool LooksLikeAppId(string id) => string.IsNullOrEmpty(id) || System.Guid.TryParse(id.Trim(), out _);
 
         private static string Current(SerializedObject so, string field)
         {

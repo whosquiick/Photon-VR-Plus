@@ -109,9 +109,9 @@ namespace Photon.VR
             }
             if (manager.LeftHand == null || manager.RightHand == null)
                 EditorGUILayout.HelpBox("Left/Right hand not assigned - drag your controllers in.", MessageType.Warning);
-            if (Object.FindObjectOfType<PlayerSpawner>() == null)
+            if (PhotonVRFind.First<PlayerSpawner>() == null)
                 EditorGUILayout.HelpBox("No PlayerSpawner in the scene - nobody will be spawned. Use Setup Scene.", MessageType.Warning);
-            if (Object.FindObjectOfType<PhotonVRVoice>() == null)
+            if (PhotonVRFind.First<PhotonVRVoice>() == null)
                 EditorGUILayout.HelpBox("No PhotonVRVoice in the scene - your microphone will not transmit. Use Setup Scene.", MessageType.Info);
         }
     }

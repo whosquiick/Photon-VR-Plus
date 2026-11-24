@@ -109,6 +109,14 @@ namespace Photon.VR
 
         private static HashSet<string> muted;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            muted = null;
+            Changed = null;
+        }
+
         private static HashSet<string> Set
         {
             get

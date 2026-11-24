@@ -85,7 +85,7 @@ namespace Photon.VR
 
         private static void PointSpawnersAt(string resourcesName)
         {
-            foreach (PlayerSpawner spawner in UnityEngine.Object.FindObjectsOfType<PlayerSpawner>())
+            foreach (PlayerSpawner spawner in PhotonVRFind.All<PlayerSpawner>())
             {
                 Undo.RecordObject(spawner, "PhotonVR prefab location");
                 spawner.PrefabLocation = resourcesName;

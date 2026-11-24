@@ -42,6 +42,16 @@ namespace Photon.VR.Saving
         private static readonly List<IPhotonVRSaveProvider> providers = new List<IPhotonVRSaveProvider>();
         private static float saveAt = -1f;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            providers.Clear();
+            saveAt = -1f;
+            Loaded = null;
+            SaveDelay = 2f;
+        }
+
         public static IReadOnlyList<IPhotonVRSaveProvider> Providers => providers;
 
         /// <summary>Adds a provider. With <paramref name="loadNow"/>, its data is loaded and applied right away.</summary>

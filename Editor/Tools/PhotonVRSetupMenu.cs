@@ -27,7 +27,7 @@ namespace Photon.VR
         public static void SetupScene()
         {
             // Manager: prefer the shipped drop-in prefab (manager + voice + spawner).
-            PhotonVRManager manager = UnityEngine.Object.FindObjectOfType<PhotonVRManager>();
+            PhotonVRManager manager = PhotonVRFind.First<PhotonVRManager>();
             if (manager == null)
             {
                 GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(ManagerPrefabGuid));
@@ -36,15 +36,16 @@ namespace Photon.VR
                 manager = go.GetComponent<PhotonVRManager>() ?? go.AddComponent<PhotonVRManager>();
             }
             Undo.RecordObject(manager, "Setup PhotonVRManager");
+            // Use (or make) Resources/PhotonVRSettings so the IDs live in one project asset, not in every scene.
             if (manager.Settings == null)
-                manager.Settings = PhotonVRSettings.LoadDefault();
+                manager.Settings = PhotonVRSettings.LoadDefault() ?? CreateSettingsAsset();
             manager.CheckDefaultValues();
             if (manager.Head == null && Camera.main != null)
                 manager.Head = Camera.main.transform;
             EditorUtility.SetDirty(manager);
 
             // Spawner
-            if (UnityEngine.Object.FindObjectOfType<PlayerSpawner>() == null)
+            if (PhotonVRFind.First<PlayerSpawner>() == null)
             {
                 var go = new GameObject("PhotonVRPlayerSpawner");
                 Undo.RegisterCreatedObjectUndo(go, "Create PlayerSpawner");
@@ -52,9 +53,9 @@ namespace Photon.VR
             }
 
             // Voice
-            if (UnityEngine.Object.FindObjectOfType<PhotonVRVoice>() == null)
+            if (PhotonVRFind.First<PhotonVRVoice>() == null)
             {
-                VoiceConnection existing = UnityEngine.Object.FindObjectsOfType<VoiceConnection>()
+                VoiceConnection existing = PhotonVRFind.All<VoiceConnection>()
                     .FirstOrDefault(v => v.GetType().Name == "PunVoiceClient" || v.GetType().Name == "PhotonVoiceNetwork");
                 GameObject go = existing != null ? existing.gameObject : new GameObject("PhotonVRVoice");
                 if (existing == null)
@@ -82,7 +83,18 @@ namespace Photon.VR
 
             EditorSceneManager.MarkSceneDirty(manager.gameObject.scene);
             Selection.activeObject = manager.gameObject;
-            ValidateSetup();
+
+            // The one step we can't do for you: the App IDs from dashboard.photonengine.com.
+            if (!manager.HasAnyAppId)
+            {
+                if (EditorUtility.DisplayDialog("Photon VR Plus",
+                        "The scene is set up. Last step: paste your Photon App ID and Voice App ID from dashboard.photonengine.com.\n\n" +
+                        "They're saved encrypted to Resources/PhotonVRSettings.", "Enter App IDs", "Later"))
+                    PhotonVRAppIdWindow.Open();
+                ValidateSetup();
+                return;
+            }
+            ValidateSetup(true);
         }
 
         [MenuItem("Tools/PhotonVR/Create Settings Asset", false, 20)]
@@ -116,12 +128,23 @@ namespace Photon.VR
         public static GameObject BuildPlayer() => PhotonVRPrefabBuilder.BuildPlayer();
 
         [MenuItem("Tools/PhotonVR/Validate Setup", false, 30)]
-        public static void ValidateSetup()
+        private static void ValidateSetupMenu() => ValidateSetup(true);
+
+        public static void ValidateSetup() => ValidateSetup(false);
+
+        /// <summary>Checks the open scene and project; logs every problem and, with <paramref name="showDialog"/>, sums them up in a dialog.</summary>
+        public static int ValidateSetup(bool showDialog)
         {
             int problems = 0;
-            void Problem(string msg) { problems++; PhotonVRLog.Warn(msg); }
+            var summary = new System.Text.StringBuilder();
+            void Problem(string msg)
+            {
+                problems++;
+                PhotonVRLog.Warn(msg);
+                if (problems <= 8) summary.Append("- ").Append(msg.Split('\n')[0]).Append('\n');
+            }
 
-            var manager = UnityEngine.Object.FindObjectOfType<PhotonVRManager>();
+            var manager = PhotonVRFind.First<PhotonVRManager>();
             if (manager == null) Problem("No PhotonVRManager in the scene.");
             else
             {
@@ -133,8 +156,8 @@ namespace Photon.VR
             }
             if (PhotonVRAppIdWindow.HasPlaintextInServerSettings())
                 Problem("PhotonServerSettings contains plaintext App IDs (Tools > PhotonVR > Move App IDs Out Of PhotonServerSettings).");
-            if (UnityEngine.Object.FindObjectOfType<PlayerSpawner>() == null) Problem("No PlayerSpawner in the scene.");
-            if (UnityEngine.Object.FindObjectOfType<PhotonVRVoice>() == null) Problem("No PhotonVRVoice in the scene (no microphone transmission).");
+            if (PhotonVRFind.First<PlayerSpawner>() == null) Problem("No PlayerSpawner in the scene.");
+            if (PhotonVRFind.First<PhotonVRVoice>() == null) Problem("No PhotonVRVoice in the scene (no microphone transmission).");
 
             var prefabs = Resources.LoadAll<GameObject>("PhotonVR").Where(g => g.name == "Player" && g.GetComponent<PhotonVRPlayer>() != null).ToArray();
             if (prefabs.Length == 0) Problem("No Resources/PhotonVR/Player prefab (Tools > PhotonVR > Prefabs > Create Player Prefab).");
@@ -150,7 +173,19 @@ namespace Photon.VR
                         Problem($"{AssetDatabase.GetAssetPath(p)}: cosmetic slot '{slot}' is missing or has no Object.");
             }
 
+            if (Resources.Load("TMP Settings") == null)
+                Problem("TextMeshPro Essential Resources aren't imported, so nameplates show no text (Window > TextMeshPro > Import TMP Essential Resources).");
+
             if (problems == 0) PhotonVRLog.Info("Setup looks good.");
+            if (showDialog)
+            {
+                if (problems == 0)
+                    EditorUtility.DisplayDialog("Photon VR Plus", "Setup looks good. Press Play to connect.", "OK");
+                else
+                    EditorUtility.DisplayDialog("Photon VR Plus", problems + " thing(s) to fix (details in the Console):\n\n" + summary +
+                                                (problems > 8 ? "- ...\n" : ""), "OK");
+            }
+            return problems;
         }
     }
 }

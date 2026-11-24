@@ -259,7 +259,8 @@ namespace Photon.VR
         public override void OnJoinedRoom()
         {
             Room room = PhotonNetwork.CurrentRoom;
-            PhotonVRLog.Info($"Joined room {room.Name} ({room.PlayerCount}/{room.MaxPlayers})");
+            if (room != null)
+                PhotonVRLog.Info($"Joined room {room.Name} ({room.PlayerCount}/{room.MaxPlayers})");
             SetState(ConnectionState.InRoom);
             JoinedRoom?.Invoke(room);
             OnJoinedRoomEvent?.Invoke();

@@ -40,6 +40,16 @@ namespace Photon.VR.PlayFab
         public static event Action<string> LoginSucceeded;
         public static event Action<string> LoginFailed;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetAuthStatics()
+        {
+            PlayFabId = null;
+            LoginSucceeded = null;
+            LoginFailed = null;
+            pushedName = null;
+        }
+
         private PhotonVRPlayFabSaveProvider saveProvider;
 
         protected virtual void OnEnable()
@@ -61,7 +71,26 @@ namespace Photon.VR.PlayFab
             else LoginWithDeviceId();
         }
 
-        public void LoginWithDeviceId() => LoginWithCustomId(SystemInfo.deviceUniqueIdentifier);
+        public void LoginWithDeviceId() => LoginWithCustomId(DeviceLoginId());
+
+        private const string FallbackIdKey = "PhotonVR_PlayFabDeviceId";
+
+        // Some platforms (WebGL, some Android setups) return "n/a" or an empty device ID. Logging in with that
+        // would put every one of those players on the same PlayFab account, so use a random ID kept on this device.
+        private static string DeviceLoginId()
+        {
+            string id = SystemInfo.deviceUniqueIdentifier;
+            if (!string.IsNullOrEmpty(id) && id != SystemInfo.unsupportedIdentifier && id.Trim('0', '-').Length > 0)
+                return id;
+            string saved = PlayerPrefs.GetString(FallbackIdKey, "");
+            if (string.IsNullOrEmpty(saved))
+            {
+                saved = Guid.NewGuid().ToString("N");
+                PlayerPrefs.SetString(FallbackIdKey, saved);
+                PlayerPrefs.Save();
+            }
+            return saved;
+        }
 
         public void LoginWithCustomId(string id)
         {
@@ -103,7 +132,14 @@ namespace Photon.VR.PlayFab
             LoginSucceeded?.Invoke(PlayFabId);
             if (!UsePhotonCustomAuth) return;
 
-            string appId = PhotonVRManager.Manager != null ? PhotonVRManager.Manager.AppId : PhotonNetwork.PhotonServerSettings.AppSettings.AppIdRealtime;
+            string appId = PhotonVRManager.Manager != null ? PhotonVRManager.Manager.AppId
+                : PhotonNetwork.PhotonServerSettings != null && PhotonNetwork.PhotonServerSettings.AppSettings != null
+                    ? PhotonNetwork.PhotonServerSettings.AppSettings.AppIdRealtime : null;
+            if (string.IsNullOrEmpty(appId))
+            {
+                Fail("No Photon App ID set, so there's nothing to get a Photon token for. Set it with Tools > PhotonVR > Set App IDs.");
+                return;
+            }
             PlayFabClientAPI.GetPhotonAuthenticationToken(new GetPhotonAuthenticationTokenRequest { PhotonApplicationId = appId },
                 token => ConnectToPhoton(token.PhotonCustomAuthenticationToken),
                 e => Fail(e.GenerateErrorReport()));

@@ -9,6 +9,10 @@ public class Playfablogin : PhotonVRPlayFabManager
 {
     public static Playfablogin instance;
 
+    // Domain reload can be turned off (Enter Play Mode Options); don't keep last session's instance.
+    [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetInstance() => instance = null;
+
     [UnityEngine.Tooltip("Name used by UpdateName().")]
     public new string name;
 
@@ -16,6 +20,12 @@ public class Playfablogin : PhotonVRPlayFabManager
     {
         instance = this;
         base.Awake();
+    }
+
+    protected override void OnDestroy()
+    {
+        if (instance == this) instance = null;
+        base.OnDestroy();
     }
 
     public void Login() => LoginWithDeviceId();

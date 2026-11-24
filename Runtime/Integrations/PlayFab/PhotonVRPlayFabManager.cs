@@ -89,6 +89,20 @@ namespace Photon.VR.PlayFab
         private static readonly Dictionary<string, CatalogItem> catalog = new Dictionary<string, CatalogItem>();
         private static bool catalogLoaded;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetManagerStatics()
+        {
+            Instance = null;
+            InventoryChanged = null;
+            Banned = null;
+            IsBanned = false;
+            currency.Clear();
+            items.Clear();
+            catalog.Clear();
+            catalogLoaded = false;
+        }
+
         private PhotonVRIdVault vault;
         private int coinsMasked, coinsKey;
         private int loginAttempts;

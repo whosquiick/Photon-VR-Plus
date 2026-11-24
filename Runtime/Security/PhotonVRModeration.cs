@@ -24,6 +24,15 @@ namespace Photon.VR
 
         private static readonly HashSet<string> bannedUserIds = new HashSet<string>();
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            bannedUserIds.Clear();
+            Kicked = null;
+            KickBlockedNames = false;
+        }
+
         /// <summary>Asks <paramref name="target"/> to leave. Only works on the legitimate master.</summary>
         public static bool Kick(Photon.Realtime.Player target, string reason)
         {
@@ -55,9 +64,13 @@ namespace Photon.VR
             if (!(e.CustomData is object[] data) || data.Length < 2 || !(data[0] is int target) || target != PhotonNetwork.LocalPlayer.ActorNumber)
                 return;
 
+            // Fake kicks get reported below; cap them so a spammer can't flood the log and your Authority.
+            if (!PhotonVRSecurity.CheckRate(sender, "kick-event", 1f, 3f)) return;
+
             Photon.Realtime.Player master = PhotonVRMasterClient.LegitimateMaster;
             bool fromMaster = sender != null && master != null && sender.ActorNumber == master.ActorNumber;
-            string reason = data[1] as string ?? "Kicked";
+            string reason = data[1] as string;
+            reason = string.IsNullOrEmpty(reason) ? "Kicked" : reason.Length > 64 ? reason.Substring(0, 64) : reason;
             if (!fromMaster)
             {
                 PhotonVRSecurity.Report(sender, PhotonVRViolationType.KickAttempt, "tried to kick us without being the master");

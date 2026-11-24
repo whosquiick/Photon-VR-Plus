@@ -56,8 +56,27 @@ namespace Photon.VR
         private static bool PlayFabSdkPresent() =>
             AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetType("PlayFab.PlayFabClientAPI", false) != null);
 
+        // The BuildTargetGroup overloads are obsolete from 2021.2 (warnings on Unity 6), so use NamedBuildTarget there.
+        private static string ReadDefines(BuildTargetGroup group)
+        {
+#if UNITY_2021_2_OR_NEWER
+            return PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(group));
+#else
+            return PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
+#endif
+        }
+
+        private static void WriteDefines(BuildTargetGroup group, string defines)
+        {
+#if UNITY_2021_2_OR_NEWER
+            PlayerSettings.SetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(group), defines);
+#else
+            PlayerSettings.SetScriptingDefineSymbolsForGroup(group, defines);
+#endif
+        }
+
         private static List<string> GetDefines() =>
-            PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup)
+            ReadDefines(EditorUserBuildSettings.selectedBuildTargetGroup)
                 .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(d => d.Trim()).ToList();
 
         private static bool HasDefine(string define) => GetDefines().Contains(define);
@@ -67,12 +86,12 @@ namespace Photon.VR
             // Apply to every installed group so Android (Quest) and Standalone builds match.
             foreach (BuildTargetGroup group in new[] { BuildTargetGroup.Standalone, BuildTargetGroup.Android, EditorUserBuildSettings.selectedBuildTargetGroup }.Distinct())
             {
-                var defines = PlayerSettings.GetScriptingDefineSymbolsForGroup(group)
+                var defines = ReadDefines(group)
                     .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(d => d.Trim()).ToList();
                 if (on == defines.Contains(define)) continue;
                 if (on) defines.Add(define);
                 else defines.Remove(define);
-                PlayerSettings.SetScriptingDefineSymbolsForGroup(group, string.Join(";", defines));
+                WriteDefines(group, string.Join(";", defines));
             }
             Debug.Log($"[PhotonVR] {define} {(on ? "enabled" : "disabled")}. Unity will recompile.");
         }

@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.2.4] - 2026-11-24
+A pass over Runtime vs Editor, security and setup. Nothing in the public API, serialized fields, RPC names, property keys
+or GUIDs changed.
+
+### Fixed
+- **Player builds with PlayFab on:** `PhotonVRPlayFabManager` called an internal Runtime method that's only compiled
+  outside the editor, so projects with `PHOTONVR_PLAYFAB` worked in Play mode but failed to build a player. The Runtime
+  assembly now lets `PhotonVR.PlayFab` see it.
+- **Enter Play Mode Options (domain reload off):** statics kept the old manager, voice instance, players, profiles,
+  security state, save providers and event listeners between play sessions, so the second Play could act on destroyed
+  objects or fire events twice. Every class with static state now resets itself when play starts. Same for the PlayFab
+  adapter.
+- `FindObjectOfType` / `FindObjectsOfType` are obsolete on Unity 2023.1+ and Unity 6. The package now uses
+  `FindFirstObjectByType` / `FindObjectsByType` there, so no more obsolete warnings (the older call is still used on 2020/2021/2022).
+- The scripting define helpers no longer use the obsolete `BuildTargetGroup` overloads on 2021.2+.
+- A saved name from PlayerPrefs (from an older version or edited by hand) is now checked by the word filter and length
+  limit before it's used.
+- Small null checks in `OnJoinedRoom`, `OnPlayerLeftRoom` and when PhotonServerSettings has no AppSettings.
+
+### Security
+- Name changes: setting the same name again does nothing, and fast bursts are merged and sent at most about once a
+  second after a few quick ones. Before, a script setting the name every frame sent a network update every frame.
+- `RPCRefreshPlayerValues` is rate limited per sender, since anyone in the room can send it.
+- Fake kick and master handoff events are rate limited before they're reported, so spamming them can't flood the log
+  or your `Authority`. Kick reasons from the master are clipped to 64 characters.
+- PlayFab device login: on platforms without a device ID (`"n/a"`, e.g. WebGL) everyone logged in as the same PlayFab
+  account. It now uses a random ID saved on that device instead.
+- PlayFab custom auth stops with a clear error when there's no Photon App ID, instead of asking PlayFab for a token
+  for an empty app.
+- README: more about what client-side checks can't stop (kicks, session bans, rate limits).
+
+### Setup
+- New **Tools > PhotonVR > Check Dependencies**. It's in its own small editor assembly with no references, so when
+  PUN 2, Photon Voice 2 or TextMeshPro are missing you get one clear message and a dialog with the Asset Store links
+  instead of only compile errors. It also offers to turn off `PHOTONVR_PLAYFAB` if the PlayFab SDK was removed.
+- **Setup Scene** now creates `Resources/PhotonVRSettings` when it's missing, asks for the App IDs at the end and opens
+  the App ID window, then shows what's left to fix in a dialog.
+- **Validate Setup** shows a summary dialog and also checks that TMP Essential Resources are imported.
+- **Set App IDs** warns when what you pasted doesn't look like a Photon App ID, and trims spaces.
+- README: a short numbered quickstart for git URL, UPM zip and .unitypackage installs, with the dependencies listed.
+
 ## [1.2.3] - 2026-11-23
 Runtime scripts no longer touch UnityEditor, so Unity treats them as runtime-only.
 

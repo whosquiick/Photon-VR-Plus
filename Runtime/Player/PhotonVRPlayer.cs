@@ -57,6 +57,14 @@ namespace Photon.VR.Player
         /// <summary>Raised on any player after its name / colour / cosmetics were applied.</summary>
         public static event Action<PhotonVRPlayer> ValuesRefreshed;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            all.Clear();
+            ValuesRefreshed = null;
+        }
+
         /// <summary>The head / hand sync component (added automatically when missing).</summary>
         public PhotonVRPoseSync PoseSync { get; private set; }
 
@@ -227,8 +235,11 @@ namespace Photon.VR.Player
         }
 
         [PunRPC]
-        private void RPCRefreshPlayerValues()
+        private void RPCRefreshPlayerValues(PhotonMessageInfo info)
         {
+            // Anyone can send this RPC, so cap it per sender. It only re-reads the owner's own values, but a
+            // flood would still rebuild cosmetics over and over. (Same RPC name, so older clients still match.)
+            if (info.Sender != null && !info.Sender.IsLocal && !PhotonVRRpc.Rate(info, "refresh", 2f, 6f)) return;
             _RefreshPlayerValues();
         }
 

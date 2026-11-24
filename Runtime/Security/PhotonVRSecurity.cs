@@ -60,6 +60,22 @@ namespace Photon.VR
         private static readonly Dictionary<int, int> violationCounts = new Dictionary<int, int>();
         private static SecurityCallbacks callbacks;
 
+        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            // PUN may also have kept its callback list, so take ours out before forgetting it.
+            if (callbacks != null) { try { PhotonNetwork.RemoveCallbackTarget(callbacks); } catch (Exception) { } }
+            callbacks = null;
+            Authority = null;
+            ViolationDetected = null;
+            KickAfterViolations = 0;
+            LogViolations = true;
+            violationCounts.Clear();
+            Limits.Clear();
+            ReportThrottle.Clear();
+        }
+
         /// <summary>Registers the Photon callbacks. Called by PhotonVRManager; safe to call more than once.</summary>
         public static void Initialize()
         {
@@ -159,6 +175,7 @@ namespace Photon.VR
 
             public void OnPlayerLeftRoom(Photon.Realtime.Player otherPlayer)
             {
+                if (otherPlayer == null) return;
                 PhotonVRProfiles.Remove(otherPlayer.ActorNumber);
                 ForgetPlayer(otherPlayer);
             }

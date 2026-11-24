@@ -99,7 +99,7 @@ namespace Photon.VR
         public static void SetSpectator(bool spectator)
         {
             PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable { { PhotonVRKeys.Spectator, spectator } });
-            PlayerSpawner spawner = UnityEngine.Object.FindObjectOfType<PlayerSpawner>();
+            PlayerSpawner spawner = PhotonVRFind.First<PlayerSpawner>();
             if (spawner == null || !PhotonNetwork.InRoom) return;
             if (spectator) spawner.Despawn();
             else if (spawner.SpawnOnJoin) spawner.Spawn();
