@@ -205,3 +205,15 @@ prefab: `VRTopHat`, `VRTopHatWhite` (Head), `VRSunglasses`, `GooglyEyes` (Face).
 - New editor-only assembly `PhotonVR.SetupCheck` (not auto-referenced, nothing references it).
 - `PhotonVRPlayFabAuth.LoginWithDeviceId()` uses a random ID saved on the device when the platform has no device ID
   (`SystemInfo.unsupportedIdentifier`). Players on those platforms used to share one PlayFab account.
+
+## 1.3.0 notes
+- No public members were removed or renamed. Serialized fields, RPC names, property keys, the pose wire format and
+  every GUID are the same as 1.2.4.
+- Added to `PhotonVRIdProtector`: `ProjectPrefix` (`"pvr2:"`), `HasProjectKey`, `NeedsUpgrade`, `IsFromOtherProject`
+  and `UseProjectKey` (hidden from IntelliSense; the generated key script calls it).
+- New values are saved as `pvr2:` when a project key is loaded. `pvr1:` and `pvx1:` are still read and get re-saved as
+  `pvr2:` in the editor. 1.2.x can't read `pvr2:`, so after a downgrade set the IDs again.
+- The editor creates `Assets/PhotonVR-ProjectKey` with a small `PhotonVR.ProjectKey` assembly (references `PhotonVR`).
+- `PhotonVRProtectedString.Preview()` now shows only the last 4 characters.
+- `PhotonVRPoseSync` copies the local rig once per frame in `LateUpdate` (it used to do it in `Update` too).
+  `FollowRig()` is still public if you need a fresh pose earlier.

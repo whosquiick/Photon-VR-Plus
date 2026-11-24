@@ -50,7 +50,15 @@ namespace Photon.VR.Player
             if (Player == null) return;
             if (cam == null) cam = Camera.main;
 
-            bool visible = (ShowOnLocalPlayer || !Player.IsLocal) && (ShowSpectators || !PhotonVRMatchmaking.IsSpectator(Player.Owner));
+            // Spectator / mute state rarely changes, so only look it up a few times a second.
+            if (Time.unscaledTime >= nextStateCheck)
+            {
+                nextStateCheck = Time.unscaledTime + 0.25f;
+                spectator = PhotonVRMatchmaking.IsSpectator(Player.Owner);
+                muted = PhotonVRMuteList.IsMuted(Player.Owner);
+            }
+
+            bool visible = (ShowOnLocalPlayer || !Player.IsLocal) && (ShowSpectators || !spectator);
             if (visible && cam != null && HideBeyond > 0f)
                 visible = (cam.transform.position - anchor.position).sqrMagnitude < HideBeyond * HideBeyond;
 
@@ -63,12 +71,20 @@ namespace Photon.VR.Player
                     Text.text = shownName;
                 }
             }
-            if (SpeakingIcon != null) SpeakingIcon.SetActive(visible && Player.IsSpeaking);
-            if (MutedIcon != null) MutedIcon.SetActive(visible && PhotonVRMuteList.IsMuted(Player.Owner));
+            SetActive(SpeakingIcon, visible && Player.IsSpeaking);
+            SetActive(MutedIcon, visible && muted);
 
             transform.position = anchor.position + Offset;
             if (cam != null)
                 transform.rotation = Quaternion.LookRotation(transform.position - cam.transform.position, Vector3.up);
+        }
+
+        private float nextStateCheck;
+        private bool spectator, muted;
+
+        private static void SetActive(GameObject go, bool active)
+        {
+            if (go != null && go.activeSelf != active) go.SetActive(active);
         }
     }
 }

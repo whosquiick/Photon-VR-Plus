@@ -13,8 +13,6 @@ namespace Photon.VR
 {
     public partial class PhotonVRManager
     {
-        #region Public API
-
         /// <summary>Sets the Photon nickname to something (refused when the word filter blocks it)</summary>
         public static void SetUsername(string Name) => TrySetUsername(Name);
 
@@ -265,10 +263,6 @@ namespace Photon.VR
         public static void ToggleCosmetic(string Type, string CosmeticId) =>
             SetCosmetic(Type, IsCosmeticEquipped(Type, CosmeticId) ? string.Empty : CosmeticId);
 
-        #endregion
-
-        #region Internals
-
         private void LoadSavedValues()
         {
             string colour = PlayerPrefs.GetString(PhotonVRKeys.PrefsColour);
@@ -451,7 +445,5 @@ namespace Photon.VR
             if (PhotonNetwork.InRoom && Manager != null && Manager.LocalPlayer != null)
                 Manager.LocalPlayer.RefreshPlayerValues();
         }
-
-        #endregion
     }
 }

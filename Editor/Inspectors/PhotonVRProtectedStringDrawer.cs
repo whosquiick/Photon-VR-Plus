@@ -63,12 +63,20 @@ namespace Photon.VR
             property.serializedObject.ApplyModifiedProperties();
         }
 
+        // Decrypting on every repaint is wasteful, so remember the last result per ciphertext.
+        private static readonly System.Collections.Generic.Dictionary<string, string> masks =
+            new System.Collections.Generic.Dictionary<string, string>();
+
         internal static string Mask(string cipher, string salt)
         {
             if (string.IsNullOrEmpty(cipher)) return "(not set)";
-            string v = PhotonVRIdProtector.Unprotect(cipher, salt);
-            if (string.IsNullOrEmpty(v)) return "(unreadable - set it again)";
-            return v.Length <= 8 ? new string('•', v.Length) : v.Substring(0, 4) + new string('•', 8) + v.Substring(v.Length - 4);
+            if (masks.TryGetValue(cipher, out string cached)) return cached;
+            string mask = PhotonVRIdProtector.IsFromOtherProject(cipher)
+                ? "(saved with another project key - set it again)"
+                : PhotonVRProtectedString.Mask(PhotonVRIdProtector.Unprotect(cipher, salt), true);
+            if (masks.Count > 32) masks.Clear();
+            masks[cipher] = mask;
+            return mask;
         }
     }
 

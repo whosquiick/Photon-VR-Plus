@@ -34,7 +34,6 @@ namespace Photon.VR
 
         public static event Action<Entry> Registered;
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {

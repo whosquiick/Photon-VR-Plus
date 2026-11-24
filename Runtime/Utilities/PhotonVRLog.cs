@@ -8,7 +8,6 @@ namespace Photon.VR
         /// <summary>When false, <see cref="Info"/> messages are suppressed (warnings and errors always show).</summary>
         public static bool Verbose = true;
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {

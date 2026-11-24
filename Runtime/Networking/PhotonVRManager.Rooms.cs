@@ -28,8 +28,6 @@ namespace Photon.VR
         private int createRoomRetries;
         private const int MaxCreateRoomRetries = 5;
 
-        #region Public API
-
         /// <summary>Switches scenes and joins a new room (queue = scene index)</summary>
         public static void SwitchScenes(int SceneIndex, int MaxPlayers)
         {
@@ -145,10 +143,6 @@ namespace Photon.VR
         /// <summary>Raised when a room code was refused by the word filter.</summary>
         public static event Action<string> RoomCodeRejected;
 
-        #endregion
-
-        #region Internals
-
         private static void _JoinRandomRoom(string Queue, int MaxPlayers)
         {
             if (!EnsureManager("JoinRandomRoom")) return;
@@ -252,10 +246,6 @@ namespace Photon.VR
             PhotonNetwork.CreateRoom(roomCode, options, null, null);
         }
 
-        #endregion
-
-        #region Photon callbacks (rooms)
-
         public override void OnJoinedRoom()
         {
             Room room = PhotonNetwork.CurrentRoom;
@@ -312,7 +302,5 @@ namespace Photon.VR
                 if (p != null && p.Owner == targetPlayer)
                     p.ApplyPlayerValues();
         }
-
-        #endregion
     }
 }

@@ -60,7 +60,6 @@ namespace Photon.VR
         private static readonly Dictionary<int, int> violationCounts = new Dictionary<int, int>();
         private static SecurityCallbacks callbacks;
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {

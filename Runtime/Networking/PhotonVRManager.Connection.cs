@@ -18,8 +18,6 @@ namespace Photon.VR
         private int reconnectAttempts;
         private Coroutine reconnectRoutine;
 
-        #region Public API
-
         /// <summary>
         /// Applies region, game version and send/serialization rates (manager fields, overridden by the settings asset).
         /// The App IDs are <b>not</b> written to the shared PhotonServerSettings asset any more: they are decrypted
@@ -107,10 +105,6 @@ namespace Photon.VR
             if (!EnsureManager("ChangeServersAuthenticated")) return;
             ChangeServersInternal(Id, VoiceId, () => ConnectAuthenticated(username, token));
         }
-
-        #endregion
-
-        #region Internals
 
         private static string NormalizeRegion(string region)
         {
@@ -258,10 +252,6 @@ namespace Photon.VR
             reconnectRoutine = null;
         }
 
-        #endregion
-
-        #region Photon callbacks (connection)
-
         public override void OnConnectedToMaster()
         {
             SetState(ConnectionState.Connected);
@@ -309,7 +299,5 @@ namespace Photon.VR
                 StartReconnect();
             }
         }
-
-        #endregion
     }
 }

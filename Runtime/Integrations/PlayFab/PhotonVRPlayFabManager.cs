@@ -89,7 +89,6 @@ namespace Photon.VR.PlayFab
         private static readonly Dictionary<string, CatalogItem> catalog = new Dictionary<string, CatalogItem>();
         private static bool catalogLoaded;
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetManagerStatics()
         {
@@ -120,6 +119,19 @@ namespace Photon.VR.PlayFab
 
         /// <summary>Balance of <see cref="CurrencyCode"/> (works with Hide Coins In Memory too).</summary>
         public int Coins => HideCoinsInMemory ? coinsMasked ^ coinsKey : coins;
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (Application.isPlaying || !titleId.NeedsUpgrade) return;
+            PhotonVREditMode.Delay(() =>
+            {
+                if (this == null || !titleId.Upgrade()) return;
+                PhotonVREditMode.SetDirty(this);
+                if (gameObject.scene.IsValid()) PhotonVREditMode.MarkSceneDirty(gameObject.scene);
+            });
+        }
+#endif
 
         private void Reset()
         {

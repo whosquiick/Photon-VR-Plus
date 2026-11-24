@@ -26,12 +26,24 @@ namespace Photon.VR
             EditorApplication.delayCall += () => Run(false);
         }
 
+        // A Package Manager install and an imported .unitypackage share the same GUIDs. Unity then treats the
+        // .unitypackage files as already in the project ("Nothing to import") and the two copies fight.
+        private static void WarnIfInstalledTwice()
+        {
+            bool upm = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.photonvrplus.core") != null;
+            if (!upm) return;
+            if (AssetDatabase.FindAssets("PhotonVRManager t:MonoScript", new[] { "Assets" }).Length == 0) return;
+            Debug.LogError("[PhotonVR] Photon VR Plus is installed twice: through the Package Manager and as files in Assets. " +
+                           "Keep one: remove the package in Window > Package Manager, or delete the Assets/PhotonVR folder.");
+        }
+
         [MenuItem("Tools/PhotonVR/Check Dependencies", false, 1)]
         private static void RunFromMenu() => Run(true);
 
         private static void Run(bool fromMenu)
         {
             if (Application.isBatchMode && !fromMenu) return;
+            WarnIfInstalledTwice();
 
             var missing = new List<string>();
             bool pun = HasType("Photon.Pun.PhotonNetwork");

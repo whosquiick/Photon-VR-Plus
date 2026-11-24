@@ -57,7 +57,6 @@ namespace Photon.VR.Player
         /// <summary>Raised on any player after its name / colour / cosmetics were applied.</summary>
         public static event Action<PhotonVRPlayer> ValuesRefreshed;
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
@@ -115,8 +114,6 @@ namespace Photon.VR.Player
         public IReadOnlyDictionary<string, string> AppliedCosmetics => appliedCosmetics;
         private readonly Dictionary<string, string> appliedCosmetics = new Dictionary<string, string>();
 
-        #region Unity lifecycle
-
         private void Awake()
         {
             all.Add(this);
@@ -149,10 +146,6 @@ namespace Photon.VR.Player
             if (PhotonVRManager.Manager != null && PhotonVRManager.Manager.LocalPlayer == this)
                 PhotonVRManager.Manager.LocalPlayer = null;
         }
-
-        #endregion
-
-        #region Setup
 
         /// <summary>Shows or hides the head, body, hands and name tag (used for <see cref="HideLocalPlayer"/>).</summary>
         public void SetModelVisible(bool visible)
@@ -220,10 +213,6 @@ namespace Photon.VR.Player
             // Its Awake creates a missing Speaker under our Head.
             Voice = gameObject.AddComponent<PhotonVRPlayerVoice>();
         }
-
-        #endregion
-
-        #region Name / colour / cosmetics
 
         /// <summary>Asks every client to re-apply this player's name, colour and cosmetics (RPC to All).</summary>
         public void RefreshPlayerValues()
@@ -324,8 +313,6 @@ namespace Photon.VR.Player
         /// <summary>The cosmetic ID currently equipped in a slot on this player ("" if none).</summary>
         public string GetEquipped(string slotName) =>
             appliedCosmetics.TryGetValue(slotName ?? string.Empty, out string id) ? id ?? string.Empty : string.Empty;
-
-        #endregion
 
         /// <summary>A named cosmetic slot: <see cref="Object"/> holds one child per cosmetic, named by its ID.</summary>
         [Serializable]

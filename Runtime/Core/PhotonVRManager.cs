@@ -30,8 +30,6 @@ namespace Photon.VR
         /// <summary>The active manager instance (assigned in Awake).</summary>
         public static PhotonVRManager Manager { get; private set; }
 
-        #region Inspector
-
         [Header("Photon")]
         [Tooltip("Photon PUN App ID (dashboard.photonengine.com). Stored encrypted - set it with the masked field or Tools > PhotonVR > Set App IDs.")]
         [SerializeField] private PhotonVRProtectedString appId = new PhotonVRProtectedString();
@@ -141,13 +139,9 @@ namespace Photon.VR
         /// <summary>Invoked after disconnecting.</summary>
         public UnityEvent OnDisconnectedEvent = new UnityEvent();
 
-        #endregion
-
         /// <summary>The local networked player object (set when it spawns, cleared when you leave).</summary>
         [NonSerialized]
         public PhotonVRPlayer LocalPlayer;
-
-        #region Static events
 
         /// <summary>Raised whenever <see cref="GetConnectionState"/> changes.</summary>
         public static event Action<ConnectionState> StateChanged;
@@ -170,14 +164,10 @@ namespace Photon.VR
         /// <summary>Raised when another player leaves the current room.</summary>
         public static event Action<Photon.Realtime.Player> PlayerLeft;
 
-        #endregion
-
         private ConnectionState State = ConnectionState.Disconnected;
 
         /// <summary>The current connection state (same value as <see cref="GetConnectionState"/>).</summary>
         public ConnectionState CurrentState => State;
-
-        #region Unity lifecycle
 
         private void Awake()
         {
@@ -225,6 +215,17 @@ namespace Photon.VR
                     if (gameObject.scene.IsValid())
                         PhotonVREditMode.MarkSceneDirty(gameObject.scene);
                     PhotonVRLog.Warn("Moved plaintext App IDs on " + name + " into encrypted storage - save the scene/prefab to remove the plaintext from disk.", this);
+                });
+            }
+            // IDs saved before 1.3.0 get re-encrypted with this project's key.
+            if (!Application.isPlaying && (appId.NeedsUpgrade || voiceAppId.NeedsUpgrade))
+            {
+                PhotonVREditMode.Delay(() =>
+                {
+                    if (this == null || !(appId.Upgrade() | voiceAppId.Upgrade())) return;
+                    PhotonVREditMode.SetDirty(this);
+                    if (gameObject.scene.IsValid())
+                        PhotonVREditMode.MarkSceneDirty(gameObject.scene);
                 });
             }
 #endif
@@ -308,8 +309,6 @@ namespace Photon.VR
             if (RightHand == null) RightHand = PhotonVRRigFinder.FindRightHand();
         }
 
-        #endregion
-
 #if UNITY_EDITOR
         /// <summary>Editor helper (called by the inspector): auto-assigns the rig and copies IDs from PhotonServerSettings.</summary>
         public void CheckDefaultValues()
@@ -335,8 +334,6 @@ namespace Photon.VR
             return missing || !HasAppId || !HasVoiceAppId;
         }
 #endif
-
-        #region State helpers
 
         /// <summary>Gets the connection state</summary>
         public static ConnectionState GetConnectionState()
@@ -385,8 +382,6 @@ namespace Photon.VR
                 Manager.LocalPlayer = player;
             LocalPlayerSpawned?.Invoke(player);
         }
-
-        #endregion
     }
 
     /// <summary>Send / serialization rates for one platform (0 = keep the manager value).</summary>

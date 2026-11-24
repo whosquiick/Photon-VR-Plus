@@ -24,7 +24,6 @@ namespace Photon.VR
 
         private static readonly HashSet<string> bannedUserIds = new HashSet<string>();
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {

@@ -51,12 +51,29 @@ namespace Photon.VR
         /// <summary>Removes the stored value.</summary>
         public void Clear() => Set(null);
 
-        /// <summary>Returns a masked preview such as "1a2b••••••••9f0e" (for UIs; reveals 4+4 characters).</summary>
-        public string Preview()
+        /// <summary>A masked preview for UIs, e.g. "saved (…9f0e)". Only the last 4 characters are shown.</summary>
+        public string Preview() => Mask(Get(), HasValue);
+
+        internal static string Mask(string plain, bool hasValue)
         {
-            string v = Get();
-            if (string.IsNullOrEmpty(v)) return "(not set)";
-            return v.Length <= 8 ? new string('•', v.Length) : v.Substring(0, 4) + new string('•', 8) + v.Substring(v.Length - 4);
+            if (!hasValue) return "(not set)";
+            if (string.IsNullOrEmpty(plain)) return "(can't be read here - set it again)";
+            return plain.Length <= 8 ? "saved" : "saved (…" + plain.Substring(plain.Length - 4) + ")";
+        }
+
+        /// <summary>True when the value was saved by an older version and can be re-saved with the project key.</summary>
+        internal bool NeedsUpgrade => PhotonVRIdProtector.NeedsUpgrade(cipher);
+
+        // Re-encrypts an older value with the project key. Editor only; returns true when something changed.
+        internal bool Upgrade()
+        {
+            if (!NeedsUpgrade) return false;
+            byte[] plain = GetBytes();
+            if (plain == null) return false;
+            string value = System.Text.Encoding.UTF8.GetString(plain);
+            Array.Clear(plain, 0, plain.Length);
+            Set(value);
+            return true;
         }
 
         /// <summary>Never returns the plaintext (prevents accidental logging).</summary>

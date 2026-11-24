@@ -65,8 +65,6 @@ namespace Photon.VR
         private readonly Snapshot[] buffer = new Snapshot[BufferSize];
         private int count;
 
-        #region Setup
-
         /// <summary>
         /// Registers this component as the PhotonView's pose source and removes components that would fight it
         /// (legacy PhotonTransformViews on the parts, observed components that are not IPunObservable).
@@ -98,28 +96,18 @@ namespace Photon.VR
                 view.Synchronization = ViewSynchronization.UnreliableOnChange;
         }
 
-        #endregion
-
-        #region Unity
-
         private void Update()
         {
-            if (photonView.IsMine)
-                FollowRig();
-            else
+            if (!photonView.IsMine)
                 Interpolate();
         }
 
         private void LateUpdate()
         {
-            // Again after tracking updated the camera / controllers, so the sent pose is as fresh as possible.
+            // Late so tracking has already moved the camera and controllers this frame.
             if (photonView.IsMine)
                 FollowRig();
         }
-
-        #endregion
-
-        #region Owner
 
         /// <summary>Copies the local rig onto the parts now (owner only).</summary>
         public void FollowRig()
@@ -127,11 +115,19 @@ namespace Photon.VR
             if (!FollowLocalRig) return;
 
             PhotonVRManager m = PhotonVRManager.Manager;
-            Transform headSource = m != null && m.Head != null ? m.Head : (Camera.main != null ? Camera.main.transform : null);
+            Transform headSource = m != null && m.Head != null ? m.Head : FallbackHead();
             CopyPose(headSource, Head);
             CopyPose(m != null ? m.LeftHand : null, LeftHand);
             CopyPose(m != null ? m.RightHand : null, RightHand);
             LocalPoseUpdated?.Invoke(this);
+        }
+
+        private Transform fallbackHead;
+
+        private Transform FallbackHead()
+        {
+            if (fallbackHead == null && Camera.main != null) fallbackHead = Camera.main.transform;
+            return fallbackHead;
         }
 
         private static void CopyPose(Transform from, Transform to)
@@ -140,11 +136,6 @@ namespace Photon.VR
                 to.SetPositionAndRotation(from.position, from.rotation);
         }
 
-        #endregion
-
-        #region Serialization
-
-        /// <inheritdoc />
         public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
         {
             if (stream.IsWriting)
@@ -234,10 +225,6 @@ namespace Photon.VR
                 return Mathf.Clamp(Mathf.Max(nominal, measured), 0.03f, 0.5f);
             }
         }
-
-        #endregion
-
-        #region Remote interpolation
 
         /// <summary>Drops buffered poses so the next received pose snaps (use after teleporting a remote avatar).</summary>
         public void ResetInterpolation() => count = 0;
@@ -343,7 +330,5 @@ namespace Photon.VR
         {
             if (t != null) t.SetPositionAndRotation(pos, rot);
         }
-
-        #endregion
     }
 }

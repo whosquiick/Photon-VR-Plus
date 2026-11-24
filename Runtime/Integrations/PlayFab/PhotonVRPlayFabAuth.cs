@@ -40,7 +40,6 @@ namespace Photon.VR.PlayFab
         public static event Action<string> LoginSucceeded;
         public static event Action<string> LoginFailed;
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetAuthStatics()
         {

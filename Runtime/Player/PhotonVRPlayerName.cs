@@ -20,11 +20,8 @@ namespace Photon.VR.Player
 
             transform.position = Head.position + new Vector3(0, Offset, 0);
 
-            Transform viewer = null;
-            if (PhotonVRManager.Manager != null && PhotonVRManager.Manager.Head != null)
-                viewer = PhotonVRManager.Manager.Head;
-            else if (Camera.main != null)
-                viewer = Camera.main.transform;
+            PhotonVRManager m = PhotonVRManager.Manager;
+            Transform viewer = m != null && m.Head != null ? m.Head : FallbackViewer();
             if (viewer == null)
                 return;
 
@@ -36,6 +33,14 @@ namespace Photon.VR.Player
             // Same facing as the original PhotonVR (the TMP child in the prefab is set up for this).
             Quaternion target = Quaternion.LookRotation(direction, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, target, TurnSpeed * Time.deltaTime);
+        }
+
+        private Transform fallbackViewer;
+
+        private Transform FallbackViewer()
+        {
+            if (fallbackViewer == null && Camera.main != null) fallbackViewer = Camera.main.transform;
+            return fallbackViewer;
         }
     }
 }

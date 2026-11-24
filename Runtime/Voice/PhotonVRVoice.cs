@@ -55,7 +55,6 @@ namespace Photon.VR
         /// <summary>Raised when the mute state changes (true = muted).</summary>
         public static event Action<bool> MuteChanged;
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {

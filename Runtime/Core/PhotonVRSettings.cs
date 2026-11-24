@@ -90,16 +90,22 @@ namespace Photon.VR
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            if (!migratedLegacyIds) return;
+            bool legacy = migratedLegacyIds;
+            if (!legacy && !appId.NeedsUpgrade && !voiceAppId.NeedsUpgrade) return;
             migratedLegacyIds = false;
             PhotonVREditMode.Delay(() =>
             {
                 if (this == null) return;
+                bool upgraded = appId.Upgrade() | voiceAppId.Upgrade();
+                if (!legacy && !upgraded) return;
                 PhotonVREditMode.SetDirty(this);
                 PhotonVREditMode.SaveAsset(this);
-                PhotonVRLog.Warn("Moved plaintext App IDs in " + name + " into encrypted storage.", this);
+                if (legacy) PhotonVRLog.Warn("Moved plaintext App IDs in " + name + " into encrypted storage.", this);
             });
         }
+
+        // Lets the editor re-save older IDs with the project key without opening the asset.
+        internal bool UpgradeIds() => appId.Upgrade() | voiceAppId.Upgrade();
 #endif
     }
 }

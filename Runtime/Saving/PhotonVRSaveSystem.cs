@@ -42,7 +42,6 @@ namespace Photon.VR.Saving
         private static readonly List<IPhotonVRSaveProvider> providers = new List<IPhotonVRSaveProvider>();
         private static float saveAt = -1f;
 
-        // Domain reload can be turned off (Enter Play Mode Options); start every play session clean.
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {

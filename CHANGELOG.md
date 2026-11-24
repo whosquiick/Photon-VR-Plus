@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.3.0] - 2026-11-24
+A cleanup and hardening pass. Old scenes, prefabs and scripts keep working; nothing public was removed.
+
+### Fixed
+- **Importing a newer .unitypackage said "Nothing to import".** The packages were written with Python's default tar
+  settings, which Unity on Windows can't unpack, so it saw nothing new. They're now built the way Unity's own exporter
+  builds them, and the GUIDs are unchanged, so importing over 1.2.x updates the changed files in place.
+- Setup Check now warns when the package is installed twice (Package Manager and `Assets`), which also blocks imports.
+
+### App IDs
+- The App ID, Voice App ID and PlayFab Title ID are now encrypted with a random key made for your project
+  (`Assets/PhotonVR-ProjectKey`), on top of the package key. Existing IDs move over automatically.
+- The inspector only shows the last 4 characters, and the build stops with a clear message if the key is missing.
+
+### Performance
+- The owner's pose is copied once per frame instead of twice.
+- Nameplates check spectator and mute state 4 times a second instead of every frame and skip redundant `SetActive` calls.
+- Camera fallbacks are cached instead of looked up every frame; the ID field in the inspector no longer decrypts on every repaint.
+
+### Other
+- Much shorter README. The full docs moved to `Documentation~/Guide.md`.
+- Removed `#region` blocks and repeated boilerplate comments.
+
 ## [1.2.4] - 2026-11-24
 A pass over Runtime vs Editor, security and setup. Nothing in the public API, serialized fields, RPC names, property keys
 or GUIDs changed.
